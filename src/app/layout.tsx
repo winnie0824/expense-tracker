@@ -1,3 +1,5 @@
+import './globals.css'
+
 export const metadata = {
   title: '收支管理系統',
   description: '簡單的收支追蹤工具',
