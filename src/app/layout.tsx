@@ -1,6 +1,7 @@
 import './globals.css'
+import type { Metadata } from 'next'
 
-export const metadata = {
+export const metadata: Metadata = {
   title: '收支管理系統',
   description: '簡單的收支追蹤工具',
 }
