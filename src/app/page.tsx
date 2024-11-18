@@ -14,7 +14,7 @@ import {
   Wallet
 } from 'lucide-react'
 
-interface Entry {
+type Entry = {
   id: number
   date: string
   description: string
@@ -95,9 +95,8 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen p-6 bg-gradient-to-b from-gray-50 to-gray-100">
+    <main className="min-h-screen p-6 bg-gradient-to-b from-gray-50 to-gray-100">
       <div className="max-w-4xl mx-auto">
-        {/* 標題和按鈕 */}
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center space-x-2">
             <Wallet className="w-8 h-8 text-blue-600" />
@@ -134,7 +133,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 新增表單 */}
         {showForm && (
           <div className="mb-8">
             <form onSubmit={handleSubmit} className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
@@ -208,8 +206,7 @@ export default function Home() {
             </form>
           </div>
         )}
-        
-        {/* 總覽面板 */}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-2xl shadow-lg border border-blue-200">
             <div className="flex items-center space-x-2 text-blue-600 font-semibold mb-2">
@@ -242,7 +239,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 搜尋和篩選 */}
         <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
@@ -287,7 +283,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 記錄表格 */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
           <table className="w-full">
             <thead>
@@ -317,8 +312,7 @@ export default function Home() {
                           ? 'bg-blue-100 text-blue-800' 
                           : 'bg-red-100 text-red-800'
                       }`}>
-                        {entry.type === 'income
-                          {entry.type === 'income' ? (
+                        {entry.type === 'income' ? (
                           <>
                             <PlusCircle size={14} />
                             <span>收入</span>
@@ -351,6 +345,6 @@ export default function Home() {
           </table>
         </div>
       </div>
-    </div>
+    </main>
   )
 }
