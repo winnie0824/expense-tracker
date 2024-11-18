@@ -14,10 +14,85 @@ import {
   Wallet
 } from 'lucide-react'
 
-// ... interfaces 保持不變
+interface Entry {
+  id: number
+  date: string
+  description: string
+  type: 'income' | 'expense'
+  amount: number
+}
 
 export default function Home() {
-  // ... useState 部分保持不變
+  const [entries, setEntries] = useState<Entry[]>([
+    { id: 1, date: '2024-01-01', description: '薪資', type: 'income', amount: 50000 },
+    { id: 2, date: '2024-01-02', description: '房租', type: 'expense', amount: 15000 },
+  ])
+  
+  const [showForm, setShowForm] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'expense'>('all')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  
+  const [newEntry, setNewEntry] = useState<Omit<Entry, 'id'>>({
+    date: new Date().toISOString().split('T')[0],
+    description: '',
+    type: 'income',
+    amount: 0
+  })
+
+  const totalIncome = entries
+    .filter(entry => entry.type === 'income')
+    .reduce((sum, entry) => sum + entry.amount, 0)
+
+  const totalExpense = entries
+    .filter(entry => entry.type === 'expense')
+    .reduce((sum, entry) => sum + entry.amount, 0)
+
+  const balance = totalIncome - totalExpense
+
+  const filteredEntries = entries
+    .filter(entry => {
+      const matchesSearch = entry.description.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesType = typeFilter === 'all' || entry.type === typeFilter
+      return matchesSearch && matchesType
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.date).getTime()
+      const dateB = new Date(b.date).getTime()
+      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA
+    })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newEntry.description || !newEntry.amount) return
+
+    setEntries([
+      ...entries,
+      {
+        id: Math.max(0, ...entries.map(e => e.id)) + 1,
+        ...newEntry
+      }
+    ])
+    setShowForm(false)
+    setNewEntry({
+      date: new Date().toISOString().split('T')[0],
+      description: '',
+      type: 'income',
+      amount: 0
+    })
+  }
+
+  const handleDelete = (id: number) => {
+    if (confirm('確定要刪除這筆記錄嗎？')) {
+      setEntries(entries.filter(entry => entry.id !== id))
+    }
+  }
+
+  const handleClearAll = () => {
+    if (confirm('確定要清空所有記錄嗎？此操作無法復原！')) {
+      setEntries([])
+    }
+  }
 
   return (
     <div className="min-h-screen p-6 bg-gradient-to-b from-gray-50 to-gray-100">
@@ -242,7 +317,8 @@ export default function Home() {
                           ? 'bg-blue-100 text-blue-800' 
                           : 'bg-red-100 text-red-800'
                       }`}>
-                        {entry.type === 'income' ? (
+                        {entry.type === 'income
+                          {entry.type === 'income' ? (
                           <>
                             <PlusCircle size={14} />
                             <span>收入</span>
