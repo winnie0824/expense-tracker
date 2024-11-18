@@ -2,349 +2,431 @@
 
 import { useState } from 'react'
 import { 
+  Briefcase, 
   PlusCircle, 
   MinusCircle, 
-  Trash2, 
-  Search, 
-  Calendar, 
+  Trash2,
   DollarSign,
-  ArrowUpDown,
-  Filter,
-  PieChart,
-  Wallet
+  Calendar,
+  FileText,
+  PieChart
 } from 'lucide-react'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js'
+import { Bar } from 'react-chartjs-2'
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+)
+
+type Tour = {
+  id: number
+  name: string
+  date: string
+  entries: Entry[]
+}
 
 type Entry = {
   id: number
-  date: string
   description: string
   type: 'income' | 'expense'
+  category?: string
   amount: number
+  date: string
 }
 
 export default function Home() {
-  const [entries, setEntries] = useState<Entry[]>([
-    { id: 1, date: '2024-01-01', description: '薪資', type: 'income', amount: 50000 },
-    { id: 2, date: '2024-01-02', description: '房租', type: 'expense', amount: 15000 },
-  ])
+  const [tours, setTours] = useState<Tour[]>([])
+  const [currentTour, setCurrentTour] = useState<Tour | null>(null)
+  const [showNewTourForm, setShowNewTourForm] = useState(false)
+  const [showNewEntryForm, setShowNewEntryForm] = useState(false)
   
-  const [showForm, setShowForm] = useState(false)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'expense'>('all')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [newTour, setNewTour] = useState({
+    name: '',
+    date: new Date().toISOString().split('T')[0]
+  })
   
   const [newEntry, setNewEntry] = useState<Omit<Entry, 'id'>>({
-    date: new Date().toISOString().split('T')[0],
     description: '',
     type: 'income',
-    amount: 0
+    category: '',
+    amount: 0,
+    date: new Date().toISOString().split('T')[0]
   })
 
-  const totalIncome = entries
-    .filter(entry => entry.type === 'income')
-    .reduce((sum, entry) => sum + entry.amount, 0)
+  const calculateTourStats = (tour: Tour) => {
+    const totalIncome = tour.entries
+      .filter(e => e.type === 'income')
+      .reduce((sum, e) => sum + e.amount, 0)
+    
+    const totalExpense = tour.entries
+      .filter(e => e.type === 'expense')
+      .reduce((sum, e) => sum + e.amount, 0)
+    
+    return {
+      income: totalIncome,
+      expense: totalExpense,
+      profit: totalIncome - totalExpense
+    }
+  }
 
-  const totalExpense = entries
-    .filter(entry => entry.type === 'expense')
-    .reduce((sum, entry) => sum + entry.amount, 0)
-
-  const balance = totalIncome - totalExpense
-
-  const filteredEntries = entries
-    .filter(entry => {
-      const matchesSearch = entry.description.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesType = typeFilter === 'all' || entry.type === typeFilter
-      return matchesSearch && matchesType
-    })
-    .sort((a, b) => {
-      const dateA = new Date(a.date).getTime()
-      const dateB = new Date(b.date).getTime()
-      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA
-    })
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleAddTour = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newEntry.description || !newEntry.amount) return
+    const newTourEntry = {
+      id: tours.length + 1,
+      ...newTour,
+      entries: []
+    }
+    setTours([...tours, newTourEntry])
+    setCurrentTour(newTourEntry)
+    setShowNewTourForm(false)
+    setNewTour({ name: '', date: new Date().toISOString().split('T')[0] })
+  }
 
-    setEntries([
-      ...entries,
-      {
-        id: Math.max(0, ...entries.map(e => e.id)) + 1,
-        ...newEntry
-      }
-    ])
-    setShowForm(false)
+  const handleAddEntry = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!currentTour) return
+
+    const newEntryWithId = {
+      id: currentTour.entries.length + 1,
+      ...newEntry
+    }
+
+    const updatedTour = {
+      ...currentTour,
+      entries: [...currentTour.entries, newEntryWithId]
+    }
+
+    setTours(tours.map(t => t.id === currentTour.id ? updatedTour : t))
+    setCurrentTour(updatedTour)
+    setShowNewEntryForm(false)
     setNewEntry({
-      date: new Date().toISOString().split('T')[0],
       description: '',
       type: 'income',
-      amount: 0
+      category: '',
+      amount: 0,
+      date: new Date().toISOString().split('T')[0]
     })
   }
 
-  const handleDelete = (id: number) => {
-    if (confirm('確定要刪除這筆記錄嗎？')) {
-      setEntries(entries.filter(entry => entry.id !== id))
-    }
-  }
+  const handleDeleteEntry = (entryId: number) => {
+    if (!currentTour || !confirm('確定要刪除這筆記錄嗎？')) return
 
-  const handleClearAll = () => {
-    if (confirm('確定要清空所有記錄嗎？此操作無法復原！')) {
-      setEntries([])
+    const updatedTour = {
+      ...currentTour,
+      entries: currentTour.entries.filter(e => e.id !== entryId)
     }
+
+    setTours(tours.map(t => t.id === currentTour.id ? updatedTour : t))
+    setCurrentTour(updatedTour)
   }
 
   return (
-    <main className="min-h-screen p-6 bg-gradient-to-b from-gray-50 to-gray-100">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center space-x-2">
-            <Wallet className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-400">
-              收支管理系統
-            </h1>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* 標題 */}
+        <div className="flex items-center gap-4 mb-8">
+          <div className="relative">
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full blur opacity-75"></div>
+            <div className="relative bg-white rounded-full p-4">
+              <Briefcase className="w-8 h-8 text-indigo-600" />
+            </div>
           </div>
-          <div className="space-x-2">
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg hover:opacity-90 transition-all duration-200 flex items-center space-x-2"
-            >
-              {showForm ? (
-                <>
-                  <MinusCircle size={20} />
-                  <span>取消</span>
-                </>
-              ) : (
-                <>
-                  <PlusCircle size={20} />
-                  <span>新增記錄</span>
-                </>
-              )}
-            </button>
-            {entries.length > 0 && (
-              <button
-                onClick={handleClearAll}
-                className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-lg hover:opacity-90 transition-all duration-200 flex items-center space-x-2"
-              >
-                <Trash2 size={20} />
-                <span>清空記錄</span>
-              </button>
-            )}
-          </div>
+          <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-500">
+            旅行團收支管理
+          </h1>
         </div>
 
-        {showForm && (
-          <div className="mb-8">
-            <form onSubmit={handleSubmit} className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* 主要內容區 */}
+        <div className="bg-white/80 backdrop-blur-md rounded-3xl shadow-xl border border-white/20 p-8">
+          {/* 團體選擇和新增按鈕 */}
+          <div className="flex gap-4 mb-8">
+            <select
+              value={currentTour?.id || ''}
+              onChange={e => setCurrentTour(tours.find(t => t.id === Number(e.target.value)) || null)}
+              className="flex-1 p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">選擇旅行團</option>
+              {tours.map(tour => (
+                <option key={tour.id} value={tour.id}>
+                  {tour.name} ({tour.date})
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => setShowNewTourForm(true)}
+              className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2"
+            >
+              <PlusCircle size={20} />
+              <span>新增團體</span>
+            </button>
+          </div>
+
+          {/* 新增團體表單 */}
+          {showNewTourForm && (
+            <form onSubmit={handleAddTour} className="mb-8 bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+              <h2 className="text-xl font-bold mb-4">新增旅行團</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center space-x-1">
-                    <Calendar size={16} />
-                    <span>日期</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={newEntry.date}
-                    onChange={e => setNewEntry({ ...newEntry, date: e.target.value })}
-                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center space-x-1">
-                    <Filter size={16} />
-                    <span>類型</span>
-                  </label>
-                  <select
-                    value={newEntry.type}
-                    onChange={e => setNewEntry({ ...newEntry, type: e.target.value as 'income' | 'expense' })}
-                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                    required
-                  >
-                    <option value="income">收入</option>
-                    <option value="expense">支出</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center space-x-1">
-                    <PieChart size={16} />
-                    <span>說明</span>
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">團體名稱</label>
                   <input
                     type="text"
-                    value={newEntry.description}
-                    onChange={e => setNewEntry({ ...newEntry, description: e.target.value })}
-                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                    placeholder="輸入說明..."
+                    value={newTour.name}
+                    onChange={e => setNewTour({ ...newTour, name: e.target.value })}
+                    className="w-full border border-gray-200 rounded-lg p-2.5"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center space-x-1">
-                    <DollarSign size={16} />
-                    <span>金額</span>
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">出發日期</label>
                   <input
-                    type="number"
-                    value={newEntry.amount}
-                    onChange={e => setNewEntry({ ...newEntry, amount: Number(e.target.value) })}
-                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                    placeholder="輸入金額..."
+                    type="date"
+                    value={newTour.date}
+                    onChange={e => setNewTour({ ...newTour, date: e.target.value })}
+                    className="w-full border border-gray-200 rounded-lg p-2.5"
                     required
                   />
                 </div>
               </div>
-              <div className="mt-6 flex justify-end">
+              <div className="mt-4 flex justify-end">
                 <button
                   type="submit"
-                  className="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-2.5 rounded-lg hover:opacity-90 transition-all duration-200 flex items-center space-x-2"
+                  className="px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity"
                 >
-                  <PlusCircle size={20} />
-                  <span>保存</span>
+                  建立團體
                 </button>
               </div>
             </form>
-          </div>
-        )}
+          )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-2xl shadow-lg border border-blue-200">
-            <div className="flex items-center space-x-2 text-blue-600 font-semibold mb-2">
-              <PlusCircle size={20} />
-              <span>總收入</span>
-            </div>
-            <div className="text-2xl font-bold text-blue-700">
-              ${totalIncome.toLocaleString()}
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-2xl shadow-lg border border-red-200">
-            <div className="flex items-center space-x-2 text-red-600 font-semibold mb-2">
-              <MinusCircle size={20} />
-              <span>總支出</span>
-            </div>
-            <div className="text-2xl font-bold text-red-700">
-              ${totalExpense.toLocaleString()}
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-2xl shadow-lg border border-green-200">
-            <div className="flex items-center space-x-2 text-green-600 font-semibold mb-2">
-              <Wallet size={20} />
-              <span>結餘</span>
-            </div>
-            <div className="text-2xl font-bold text-green-700">
-              ${balance.toLocaleString()}
-            </div>
-          </div>
-        </div>
+          {currentTour && (
+            <>
+              {/* 收支統計 */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                {['收入', '支出', '利潤'].map((label, index) => {
+                  const stats = calculateTourStats(currentTour)
+                  const value = [stats.income, stats.expense, stats.profit][index]
+                  const colors = [
+                    'from-blue-500 to-blue-600',
+                    'from-red-500 to-red-600',
+                    'from-green-500 to-green-600'
+                  ][index]
+                  const textColors = [
+                    'text-blue-600',
+                    'text-red-600',
+                    'text-green-600'
+                  ][index]
+                  const icons = [PlusCircle, MinusCircle, DollarSign][index]
+                  const Icon = icons
 
-        <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
-              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
+                  return (
+                    <div key={label} className="relative group">
+                      <div className={`absolute -inset-0.5 bg-gradient-to-r ${colors} rounded-2xl blur opacity-75 group-hover:opacity-100 transition`}></div>
+                      <div className="relative bg-white rounded-2xl p-6">
+                        <div className="flex items-center gap-2 text-gray-600 mb-2">
+                          <Icon size={20} className={textColors} />
+                          <span className="font-medium">{label}</span>
+                        </div>
+                        <div className={`text-3xl font-bold ${textColors}`}>
+                          ${value.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
-              <input
-                type="text"
-                placeholder="搜尋說明..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-              />
-            </div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                <Filter className="h-5 w-5 text-gray-400" />
-              </div>
-              <select
-                value={typeFilter}
-                onChange={e => setTypeFilter(e.target.value as 'all' | 'income' | 'expense')}
-                className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-              >
-                <option value="all">所有類型</option>
-                <option value="income">僅收入</option>
-                <option value="expense">僅支出</option>
-              </select>
-            </div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                <ArrowUpDown className="h-5 w-5 text-gray-400" />
-              </div>
-              <select
-                value={sortOrder}
-                onChange={e => setSortOrder(e.target.value as 'asc' | 'desc')}
-                className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-              >
-                <option value="desc">最新優先</option>
-                <option value="asc">最舊優先</option>
-              </select>
-            </div>
-          </div>
-        </div>
 
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gradient-to-r from-gray-50 to-gray-100">
-                <th className="text-left p-4 text-gray-600">日期</th>
-                <th className="text-left p-4 text-gray-600">說明</th>
-                <th className="text-left p-4 text-gray-600">類型</th>
-                <th className="text-right p-4 text-gray-600">金額</th>
-                <th className="text-center p-4 text-gray-600">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredEntries.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="p-8 text-center text-gray-500">
-                    沒有找到符合條件的記錄
-                  </td>
-                </tr>
-              ) : (
-                filteredEntries.map(entry => (
-                  <tr key={entry.id} className="border-t hover:bg-gray-50 transition-colors duration-150">
-                    <td className="p-4">{entry.date}</td>
-                    <td className="p-4">{entry.description}</td>
-                    <td className="p-4">
-                      <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm ${
-                        entry.type === 'income' 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {entry.type === 'income' ? (
-                          <>
-                            <PlusCircle size={14} />
-                            <span>收入</span>
-                          </>
-                        ) : (
-                          <>
-                            <MinusCircle size={14} />
-                            <span>支出</span>
-                          </>
-                        )}
-                      </span>
-                    </td>
-                    <td className={`p-4 text-right font-medium ${
-                      entry.type === 'income' ? 'text-blue-600' : 'text-red-600'
-                    }`}>
-                      ${entry.amount.toLocaleString()}
-                    </td>
-                    <td className="p-4 text-center">
+              {/* 新增記錄按鈕和表單 */}
+              <div className="mb-8">
+                <button
+                  onClick={() => setShowNewEntryForm(!showNewEntryForm)}
+                  className="mb-4 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2"
+                >
+                  <PlusCircle size={20} />
+                  <span>新增記錄</span>
+                </button>
+
+                {showNewEntryForm && (
+                  <form onSubmit={handleAddEntry} className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">日期</label>
+                        <input
+                          type="date"
+                          value={newEntry.date}
+                          onChange={e => setNewEntry({ ...newEntry, date: e.target.value })}
+                          className="w-full border border-gray-200 rounded-lg p-2.5"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">類型</label>
+                        <select
+                          value={newEntry.type}
+                          onChange={e => setNewEntry({ ...newEntry, type: e.target.value as 'income' | 'expense' })}
+                          className="w-full border border-gray-200 rounded-lg p-2.5"
+                          required
+                        >
+                          <option value="income">收入</option>
+                          <option value="expense">支出</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">金額</label>
+                        <input
+                          type="number"
+                          value={newEntry.amount}
+                          onChange={e => setNewEntry({ ...newEntry, amount: Number(e.target.value) })}
+                          className="w-full border border-gray-200 rounded-lg p-2.5"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">說明</label>
+                        <input
+                          type="text"
+                          value={newEntry.description}
+                          onChange={e => setNewEntry({ ...newEntry, description: e.target.value })}
+                          className="w-full border border-gray-200 rounded-lg p-2.5"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-4 flex justify-end">
                       <button
-                        onClick={() => handleDelete(entry.id)}
-                        className="text-red-500 hover:text-red-700 transition-colors duration-200"
+                        type="submit"
+                        className="px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity"
                       >
-                        <Trash2 size={18} />
+                        新增
                       </button>
-                    </td>
-                  </tr>
-                ))
+                    </div>
+                  </form>
+                )}
+              </div>
+
+              {/* 記錄列表 */}
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gradient-to-r from-gray-50 to-gray-100">
+                      <th className="text-left p-4 text-gray-600">日期</th>
+                      <th className="text-left p-4 text-gray-600">說明</th>
+                      <th className="text-left p-4 text-gray-600">類型</th>
+                      <th className="text-right p-4 text-gray-600">金額</th>
+                      <th className="text-center p-4 text-gray-600">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentTour.entries.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="p-8 text-center text-gray-500">
+                          尚無記錄
+                        </td>
+                      </tr>
+                    ) : (
+                      currentTour.entries
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                        .map(entry => (
+                          <tr key={entry.id} className="border-t hover:bg-gray-50 transition-colors">
+                            <td className="p-4">{entry.date}</td>
+                            <td className="p-4">{entry.description}</td>
+                            <td className="p-4">
+                              <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${
+                                entry.type ===
+                            entry.type === 'income' 
+                                  ? 'bg-blue-100 text-blue-800' 
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {entry.type === 'income' ? (
+                                  <>
+                                    <PlusCircle size={14} />
+                                    <span>收入</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <MinusCircle size={14} />
+                                    <span>支出</span>
+                                  </>
+                                )}
+                              </span>
+                            </td>
+                            <td className={`p-4 text-right font-medium ${
+                              entry.type === 'income' ? 'text-blue-600' : 'text-red-600'
+                            }`}>
+                              ${entry.amount.toLocaleString()}
+                            </td>
+                            <td className="p-4 text-center">
+                              <button
+                                onClick={() => handleDeleteEntry(entry.id)}
+                                className="text-red-500 hover:text-red-700 transition-colors"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 收支圖表 */}
+              {currentTour.entries.length > 0 && (
+                <div className="mt-8 bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                  <Bar
+                    data={{
+                      labels: ['收入', '支出', '利潤'],
+                      datasets: [{
+                        label: '金額',
+                        data: [
+                          calculateTourStats(currentTour).income,
+                          calculateTourStats(currentTour).expense,
+                          calculateTourStats(currentTour).profit
+                        ],
+                        backgroundColor: [
+                          'rgba(59, 130, 246, 0.5)',
+                          'rgba(239, 68, 68, 0.5)',
+                          'rgba(16, 185, 129, 0.5)'
+                        ],
+                        borderColor: [
+                          'rgb(59, 130, 246)',
+                          'rgb(239, 68, 68)',
+                          'rgb(16, 185, 129)'
+                        ],
+                        borderWidth: 1
+                      }]
+                    }}
+                    options={{
+                      responsive: true,
+                      plugins: {
+                        legend: {
+                          display: false
+                        },
+                        title: {
+                          display: true,
+                          text: '收支統計圖表'
+                        }
+                      }
+                    }}
+                  />
+                </div>
               )}
-            </tbody>
-          </table>
+            </>
+          )}
         </div>
       </div>
-    </main>
+    </div>
   )
 }
