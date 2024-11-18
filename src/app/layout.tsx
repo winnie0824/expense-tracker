@@ -2,8 +2,8 @@ import './globals.css'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: '收支管理系統',
-  description: '簡單的收支追蹤工具',
+  title: '旅行團收支管理',
+  description: '旅行團收支管理系統',
 }
 
 export default function RootLayout({
