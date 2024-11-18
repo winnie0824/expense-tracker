@@ -112,3 +112,106 @@ export default function Home() {
                   說明
                 </label>
                 <input
+                  type="text"
+                  value={newEntry.description}
+                  onChange={e => setNewEntry({ ...newEntry, description: e.target.value })}
+                  className="w-full border rounded-lg p-2"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  金額
+                </label>
+                <input
+                  type="number"
+                  value={newEntry.amount}
+                  onChange={e => setNewEntry({ ...newEntry, amount: Number(e.target.value) })}
+                  className="w-full border rounded-lg p-2"
+                  required
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                type="submit"
+                className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
+              >
+                保存
+              </button>
+            </div>
+          </form>
+        )}
+        
+        {/* 總覽面板 */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <div className="text-blue-600 font-semibold">總收入</div>
+            <div className="text-2xl font-bold text-blue-700">
+              ${totalIncome.toLocaleString()}
+            </div>
+          </div>
+          
+          <div className="bg-red-50 p-4 rounded-lg">
+            <div className="text-red-600 font-semibold">總支出</div>
+            <div className="text-2xl font-bold text-red-700">
+              ${totalExpense.toLocaleString()}
+            </div>
+          </div>
+          
+          <div className="bg-green-50 p-4 rounded-lg">
+            <div className="text-green-600 font-semibold">結餘</div>
+            <div className="text-2xl font-bold text-green-700">
+              ${balance.toLocaleString()}
+            </div>
+          </div>
+        </div>
+
+        {/* 記錄表格 */}
+        <div className="bg-white rounded-lg shadow">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="text-left p-4">日期</th>
+                <th className="text-left p-4">說明</th>
+                <th className="text-left p-4">類型</th>
+                <th className="text-right p-4">金額</th>
+                <th className="text-center p-4">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map(entry => (
+                <tr key={entry.id} className="border-t">
+                  <td className="p-4">{entry.date}</td>
+                  <td className="p-4">{entry.description}</td>
+                  <td className="p-4">
+                    <span className={`inline-block px-2 py-1 rounded-full text-sm ${
+                      entry.type === 'income' 
+                        ? 'bg-blue-100 text-blue-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {entry.type === 'income' ? '收入' : '支出'}
+                    </span>
+                  </td>
+                  <td className={`p-4 text-right ${
+                    entry.type === 'income' ? 'text-blue-600' : 'text-red-600'
+                  }`}>
+                    ${entry.amount.toLocaleString()}
+                  </td>
+                  <td className="p-4 text-center">
+                    <button
+                      onClick={() => handleDelete(entry.id)}
+                      className="text-red-500 hover:text-red-700 transition-colors"
+                    >
+                      刪除
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
