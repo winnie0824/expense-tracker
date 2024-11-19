@@ -9,7 +9,8 @@ import {
   DollarSign,
   Calendar,
   FileText,
-  PieChart
+  PieChart,
+  Wallet
 } from 'lucide-react'
 import {
   Chart as ChartJS,
@@ -48,7 +49,14 @@ type Entry = {
 }
 
 export default function Home() {
-  const [tours, setTours] = useState<Tour[]>([])
+  const [tours, setTours] = useState<Tour[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('tourData');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+  
   const [currentTour, setCurrentTour] = useState<Tour | null>(null)
   const [showNewTourForm, setShowNewTourForm] = useState(false)
   const [showNewEntryForm, setShowNewEntryForm] = useState(false)
@@ -83,70 +91,100 @@ export default function Home() {
   }
 
   const handleAddTour = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     const newTourEntry = {
       id: tours.length + 1,
       ...newTour,
       entries: []
-    }
-    setTours([...tours, newTourEntry])
-    setCurrentTour(newTourEntry)
-    setShowNewTourForm(false)
-    setNewTour({ name: '', date: new Date().toISOString().split('T')[0] })
+    };
+    const updatedTours = [...tours, newTourEntry];
+    setTours(updatedTours);
+    localStorage.setItem('tourData', JSON.stringify(updatedTours));
+    setCurrentTour(newTourEntry);
+    setShowNewTourForm(false);
+    setNewTour({ name: '', date: new Date().toISOString().split('T')[0] });
   }
 
   const handleAddEntry = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!currentTour) return
+    e.preventDefault();
+    if (!currentTour) return;
 
     const newEntryWithId = {
       id: currentTour.entries.length + 1,
       ...newEntry
-    }
+    };
 
     const updatedTour = {
       ...currentTour,
       entries: [...currentTour.entries, newEntryWithId]
-    }
+    };
 
-    setTours(tours.map(t => t.id === currentTour.id ? updatedTour : t))
-    setCurrentTour(updatedTour)
-    setShowNewEntryForm(false)
+    const updatedTours = tours.map(t => 
+      t.id === currentTour.id ? updatedTour : t
+    );
+
+    setTours(updatedTours);
+    localStorage.setItem('tourData', JSON.stringify(updatedTours));
+    setCurrentTour(updatedTour);
+    setShowNewEntryForm(false);
     setNewEntry({
       description: '',
       type: 'income',
       category: '',
       amount: 0,
       date: new Date().toISOString().split('T')[0]
-    })
+    });
   }
 
   const handleDeleteEntry = (entryId: number) => {
-    if (!currentTour || !confirm('確定要刪除這筆記錄嗎？')) return
+    if (!currentTour || !confirm('確定要刪除這筆記錄嗎？')) return;
 
     const updatedTour = {
       ...currentTour,
       entries: currentTour.entries.filter(e => e.id !== entryId)
-    }
+    };
 
-    setTours(tours.map(t => t.id === currentTour.id ? updatedTour : t))
-    setCurrentTour(updatedTour)
+    const updatedTours = tours.map(t => 
+      t.id === currentTour.id ? updatedTour : t
+    );
+
+    setTours(updatedTours);
+    localStorage.setItem('tourData', JSON.stringify(updatedTours));
+    setCurrentTour(updatedTour);
   }
 
+  const handleClearAllData = () => {
+    if (confirm('確定要清除所有數據嗎？此操作無法恢復！')) {
+      setTours([]);
+      setCurrentTour(null);
+      localStorage.removeItem('tourData');
+    }
+  }
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
       <div className="max-w-7xl mx-auto">
         {/* 標題 */}
-        <div className="flex items-center gap-4 mb-8">
-          <div className="relative">
-            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full blur opacity-75"></div>
-            <div className="relative bg-white rounded-full p-4">
-              <Briefcase className="w-8 h-8 text-indigo-600" />
+        <div className="flex justify-between items-center mb-8">
+          <div className="flex items-center space-x-2">
+            <div className="relative">
+              <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full blur opacity-75"></div>
+              <div className="relative bg-white rounded-full p-4">
+                <Briefcase className="w-8 h-8 text-indigo-600" />
+              </div>
             </div>
+            <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-500">
+              旅行團收支管理
+            </h1>
           </div>
-          <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-500">
-            旅行團收支管理
-          </h1>
+          <div className="space-x-2">
+            <button
+              onClick={handleClearAllData}
+              className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2"
+            >
+              <Trash2 size={20} />
+              <span>清除所有數據</span>
+            </button>
+          </div>
         </div>
 
         {/* 主要內容區 */}
@@ -316,7 +354,7 @@ export default function Home() {
                 )}
               </div>
 
-              {/* 記錄列表 */}
+              {/* 記錄表格 */}
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
                 <table className="w-full">
                   <thead>
@@ -343,8 +381,8 @@ export default function Home() {
                             <td className="p-4">{entry.date}</td>
                             <td className="p-4">{entry.description}</td>
                             <td className="p-4">
-                              <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm $
-                            entry.type === 'income' 
+                              <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${
+                                entry.type === 'income' 
                                   ? 'bg-blue-100 text-blue-800' 
                                   : 'bg-red-100 text-red-800'
                               }`}>
