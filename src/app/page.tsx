@@ -343,8 +343,7 @@ export default function Home() {
                             <td className="p-4">{entry.date}</td>
                             <td className="p-4">{entry.description}</td>
                             <td className="p-4">
-                              <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${
-                                entry.type ===
+                              <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm $
                             entry.type === 'income' 
                                   ? 'bg-blue-100 text-blue-800' 
                                   : 'bg-red-100 text-red-800'
