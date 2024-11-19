@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Briefcase, 
   PlusCircle, 
@@ -10,7 +10,8 @@ import {
   Calendar,
   FileText,
   PieChart,
-  Wallet
+  RefreshCcw,
+  Wallet,
 } from 'lucide-react'
 import {
   Chart as ChartJS,
@@ -32,133 +33,316 @@ ChartJS.register(
   Legend
 )
 
+type Currency = 'TWD' | 'JPY' | 'USD'
+
+type ExchangeRate = {
+  currency: Currency
+  rate: number
+  lastUpdated: string
+}
+type PrepItem = {
+  id: number
+  type: 'hotel' | 'flight' | 'transport' | 'other'
+  name: string
+  status: 'pending' | 'completed'
+  cost: number
+  currency: Currency
+  dueDate: string
+  notes?: string
+}
+
 type Tour = {
   id: number
   name: string
   date: string
   entries: Entry[]
+  prepItems: PrepItem[]
 }
 
 type Entry = {
   id: number
   description: string
   type: 'income' | 'expense'
-  category?: string
   amount: number
+  currency: Currency
   date: string
+  amountTWD?: number
+}
+
+// 台銀匯率 API URL
+const EXCHANGE_RATE_API_URL = 'https://api.coolman.tw/tw/exchange/bank/taiwan-bank'
+
+// 格式化日期時間
+const formatDateTime = (date: Date) => {
+  return date.toLocaleString('zh-TW', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })
 }
 
 export default function Home() {
   const [tours, setTours] = useState<Tour[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('tourData');
-      return saved ? JSON.parse(saved) : [];
+      const saved = localStorage.getItem('tourData')
+      return saved ? JSON.parse(saved) : []
     }
-    return [];
-  });
+    return []
+  })
   
+  const [exchangeRates, setExchangeRates] = useState<{[key in Currency]: ExchangeRate}>({
+    TWD: { currency: 'TWD', rate: 1, lastUpdated: new Date().toISOString() },
+    JPY: { currency: 'JPY', rate: 0.22, lastUpdated: new Date().toISOString() },
+    USD: { currency: 'USD', rate: 31.5, lastUpdated: new Date().toISOString() }
+  })
+  
+  const [isUpdatingRates, setIsUpdatingRates] = useState(false)
   const [currentTour, setCurrentTour] = useState<Tour | null>(null)
   const [showNewTourForm, setShowNewTourForm] = useState(false)
   const [showNewEntryForm, setShowNewEntryForm] = useState(false)
+  const [showPrepItemsForm, setShowPrepItemsForm] = useState(false)
   
   const [newTour, setNewTour] = useState({
     name: '',
     date: new Date().toISOString().split('T')[0]
   })
   
-  const [newEntry, setNewEntry] = useState<Omit<Entry, 'id'>>({
+  const [newEntry, setNewEntry] = useState<Omit<Entry, 'id' | 'amountTWD'>>({
     description: '',
     type: 'income',
-    category: '',
+    currency: 'TWD',
     amount: 0,
     date: new Date().toISOString().split('T')[0]
   })
 
-  const calculateTourStats = (tour: Tour) => {
-    const totalIncome = tour.entries
-      .filter(e => e.type === 'income')
-      .reduce((sum, e) => sum + e.amount, 0)
-    
-    const totalExpense = tour.entries
-      .filter(e => e.type === 'expense')
-      .reduce((sum, e) => sum + e.amount, 0)
-    
-    return {
-      income: totalIncome,
-      expense: totalExpense,
-      profit: totalIncome - totalExpense
+  const [newPrepItem, setNewPrepItem] = useState<Omit<PrepItem, 'id'>>({
+    type: 'hotel',
+    name: '',
+    status: 'pending',
+    cost: 0,
+    currency: 'TWD',
+    dueDate: new Date().toISOString().split('T')[0],
+    notes: ''
+  })
+
+  // 抓取台銀匯率
+  const fetchExchangeRates = async () => {
+    setIsUpdatingRates(true)
+    try {
+      const response = await fetch(EXCHANGE_RATE_API_URL)
+      const data = await response.json()
+      
+      const now = new Date().toISOString()
+      setExchangeRates({
+        TWD: { currency: 'TWD', rate: 1, lastUpdated: now },
+        JPY: { 
+          currency: 'JPY', 
+          rate: 1 / parseFloat(data.data.find((rate: any) => rate.currency === 'JPY').buy), 
+          lastUpdated: now 
+        },
+        USD: { 
+          currency: 'USD', 
+          rate: parseFloat(data.data.find((rate: any) => rate.currency === 'USD').buy), 
+          lastUpdated: now 
+        }
+      })
+    } catch (error) {
+      console.error('匯率更新失敗:', error)
+    } finally {
+      setIsUpdatingRates(false)
     }
   }
 
+  // 自動更新匯率
+  useEffect(() => {
+    fetchExchangeRates()
+    // 每30分鐘更新一次
+    const interval = setInterval(fetchExchangeRates, 1800000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // 轉換為台幣
+  const convertToTWD = (amount: number, currency: Currency) => {
+    return amount * exchangeRates[currency].rate
+  }
+  // 計算統計數據
+  const calculateTourStats = (tour: Tour) => {
+    const calculateTotal = (entries: Entry[], type: 'income' | 'expense') => {
+      return entries
+        .filter(e => e.type === type)
+        .reduce((sum, e) => sum + convertToTWD(e.amount, e.currency), 0)
+    }
+
+    const totalIncome = calculateTotal(tour.entries, 'income')
+    const totalExpense = calculateTotal(tour.entries, 'expense')
+    
+    // 加入準備事項的預估成本
+    const totalPrepCost = tour.prepItems
+      ? tour.prepItems.reduce((sum, item) => sum + convertToTWD(item.cost, item.currency), 0)
+      : 0
+    
+    return {
+      income: totalIncome,
+      expense: totalExpense + totalPrepCost,
+      profit: totalIncome - (totalExpense + totalPrepCost)
+    }
+  }
+
+  // 處理添加新團體
   const handleAddTour = (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
     const newTourEntry = {
       id: tours.length + 1,
       ...newTour,
-      entries: []
-    };
-    const updatedTours = [...tours, newTourEntry];
-    setTours(updatedTours);
-    localStorage.setItem('tourData', JSON.stringify(updatedTours));
-    setCurrentTour(newTourEntry);
-    setShowNewTourForm(false);
-    setNewTour({ name: '', date: new Date().toISOString().split('T')[0] });
+      entries: [],
+      prepItems: []
+    }
+    const updatedTours = [...tours, newTourEntry]
+    setTours(updatedTours)
+    localStorage.setItem('tourData', JSON.stringify(updatedTours))
+    setCurrentTour(newTourEntry)
+    setShowNewTourForm(false)
+    setNewTour({ name: '', date: new Date().toISOString().split('T')[0] })
   }
 
+  // 處理添加新記錄
   const handleAddEntry = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentTour) return;
+    e.preventDefault()
+    if (!currentTour) return
 
     const newEntryWithId = {
       id: currentTour.entries.length + 1,
-      ...newEntry
-    };
+      ...newEntry,
+      amountTWD: convertToTWD(newEntry.amount, newEntry.currency)
+    }
 
     const updatedTour = {
       ...currentTour,
       entries: [...currentTour.entries, newEntryWithId]
-    };
+    }
 
     const updatedTours = tours.map(t => 
       t.id === currentTour.id ? updatedTour : t
-    );
+    )
 
-    setTours(updatedTours);
-    localStorage.setItem('tourData', JSON.stringify(updatedTours));
-    setCurrentTour(updatedTour);
-    setShowNewEntryForm(false);
+    setTours(updatedTours)
+    localStorage.setItem('tourData', JSON.stringify(updatedTours))
+    setCurrentTour(updatedTour)
+    setShowNewEntryForm(false)
     setNewEntry({
       description: '',
       type: 'income',
-      category: '',
+      currency: 'TWD',
       amount: 0,
       date: new Date().toISOString().split('T')[0]
-    });
+    })
   }
 
+  // 處理添加準備事項
+  const handleAddPrepItem = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!currentTour) return
+
+    const newItemWithId = {
+      id: currentTour.prepItems?.length ? Math.max(...currentTour.prepItems.map(item => item.id)) + 1 : 1,
+      ...newPrepItem
+    }
+
+    const updatedTour = {
+      ...currentTour,
+      prepItems: [...(currentTour.prepItems || []), newItemWithId]
+    }
+
+    const updatedTours = tours.map(t => 
+      t.id === currentTour.id ? updatedTour : t
+    )
+
+    setTours(updatedTours)
+    localStorage.setItem('tourData', JSON.stringify(updatedTours))
+    setCurrentTour(updatedTour)
+    setShowPrepItemsForm(false)
+    setNewPrepItem({
+      type: 'hotel',
+      name: '',
+      status: 'pending',
+      cost: 0,
+      currency: 'TWD',
+      dueDate: new Date().toISOString().split('T')[0],
+      notes: ''
+    })
+  }
+
+  // 處理更新準備事項狀態
+  const handleUpdatePrepItemStatus = (itemId: number, status: 'pending' | 'completed') => {
+    if (!currentTour) return
+
+    const updatedTour = {
+      ...currentTour,
+      prepItems: currentTour.prepItems.map(item =>
+        item.id === itemId ? { ...item, status } : item
+      )
+    }
+
+    const updatedTours = tours.map(t => 
+      t.id === currentTour.id ? updatedTour : t
+    )
+
+    setTours(updatedTours)
+    localStorage.setItem('tourData', JSON.stringify(updatedTours))
+    setCurrentTour(updatedTour)
+  }
+
+  // 處理刪除準備事項
+  const handleDeletePrepItem = (itemId: number) => {
+    if (!currentTour || !confirm('確定要刪除此準備事項？')) return
+
+    const updatedTour = {
+      ...currentTour,
+      prepItems: currentTour.prepItems.filter(item => item.id !== itemId)
+    }
+
+    const updatedTours = tours.map(t => 
+      t.id === currentTour.id ? updatedTour : t
+    )
+
+    setTours(updatedTours)
+    localStorage.setItem('tourData', JSON.stringify(updatedTours))
+    setCurrentTour(updatedTour)
+  }
+
+  // 處理刪除記錄
   const handleDeleteEntry = (entryId: number) => {
-    if (!currentTour || !confirm('確定要刪除這筆記錄嗎？')) return;
+    if (!currentTour || !confirm('確定要刪除這筆記錄嗎？')) return
 
     const updatedTour = {
       ...currentTour,
       entries: currentTour.entries.filter(e => e.id !== entryId)
-    };
+    }
 
     const updatedTours = tours.map(t => 
       t.id === currentTour.id ? updatedTour : t
-    );
+    )
 
-    setTours(updatedTours);
-    localStorage.setItem('tourData', JSON.stringify(updatedTours));
-    setCurrentTour(updatedTour);
+    setTours(updatedTours)
+    localStorage.setItem('tourData', JSON.stringify(updatedTours))
+    setCurrentTour(updatedTour)
   }
 
+  // 處理清除所有數據
   const handleClearAllData = () => {
     if (confirm('確定要清除所有數據嗎？此操作無法恢復！')) {
-      setTours([]);
-      setCurrentTour(null);
-      localStorage.removeItem('tourData');
+      setTours([])
+      setCurrentTour(null)
+      localStorage.removeItem('tourData')
     }
+  }
+
+  // 處理更新匯率
+  const handleUpdateRates = async () => {
+    await fetchExchangeRates()
   }
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
@@ -178,12 +362,43 @@ export default function Home() {
           </div>
           <div className="space-x-2">
             <button
+              onClick={handleUpdateRates}
+              className={`px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl 
+                hover:opacity-90 transition-opacity flex items-center gap-2 ${
+                isUpdatingRates ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              disabled={isUpdatingRates}
+            >
+              <RefreshCcw size={20} className={isUpdatingRates ? 'animate-spin' : ''} />
+              <span>更新匯率</span>
+            </button>
+            <button
               onClick={handleClearAllData}
               className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2"
             >
               <Trash2 size={20} />
               <span>清除所有數據</span>
             </button>
+          </div>
+        </div>
+
+        {/* 匯率資訊 */}
+        <div className="mb-8 bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-lg border border-white/20">
+          <h3 className="text-lg font-semibold text-gray-700 mb-4">即時匯率</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {Object.values(exchangeRates).map(rate => (
+              <div key={rate.currency} className="bg-gray-50 rounded-xl p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">{rate.currency}/TWD</span>
+                  <span className="text-lg font-semibold">
+                    {rate.currency === 'TWD' ? '1.0000' : rate.rate.toFixed(4)}
+                  </span>
+                </div>
+                <div className="text-sm text-gray-500 mt-2">
+                  更新時間: {new Date(rate.lastUpdated).toLocaleString()}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -248,7 +463,6 @@ export default function Home() {
               </div>
             </form>
           )}
-
           {currentTour && (
             <>
               {/* 收支統計 */}
@@ -278,12 +492,185 @@ export default function Home() {
                           <span className="font-medium">{label}</span>
                         </div>
                         <div className={`text-3xl font-bold ${textColors}`}>
-                          ${value.toLocaleString()}
+                          NT$ {value.toLocaleString()}
                         </div>
                       </div>
                     </div>
                   )
                 })}
+              </div>
+
+              {/* 準備事項區域 */}
+              <div className="mb-8">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-700">準備事項清單</h3>
+                  <button
+                    onClick={() => setShowPrepItemsForm(!showPrepItemsForm)}
+                    className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2"
+                  >
+                    <PlusCircle size={16} />
+                    <span>新增準備事項</span>
+                  </button>
+                </div>
+
+                {/* 準備事項表單 */}
+                {showPrepItemsForm && (
+                  <form onSubmit={handleAddPrepItem} className="mb-6 bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">類型</label>
+                        <select
+                          value={newPrepItem.type}
+                          onChange={e => setNewPrepItem({ ...newPrepItem, type: e.target.value as PrepItem['type'] })}
+                          className="w-full border border-gray-200 rounded-lg p-2.5"
+                          required
+                        >
+                          <option value="hotel">住宿</option>
+                          <option value="flight">機票</option>
+                          <option value="transport">交通</option>
+                          <option value="other">其他</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">名稱/說明</label>
+                        <input
+                          type="text"
+                          value={newPrepItem.name}
+                          onChange={e => setNewPrepItem({ ...newPrepItem, name: e.target.value })}
+                          className="w-full border border-gray-200 rounded-lg p-2.5"
+                          required
+                          placeholder="例：東京希爾頓飯店"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">完成期限</label>
+                        <input
+                          type="date"
+                          value={newPrepItem.dueDate}
+                          onChange={e => setNewPrepItem({ ...newPrepItem, dueDate: e.target.value })}
+                          className="w-full border border-gray-200 rounded-lg p-2.5"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">預估成本</label>
+                        <input
+                          type="number"
+                          value={newPrepItem.cost}
+                          onChange={e => setNewPrepItem({ ...newPrepItem, cost: Number(e.target.value) })}
+                          className="w-full border border-gray-200 rounded-lg p-2.5"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">幣種</label>
+                        <select
+                          value={newPrepItem.currency}
+                          onChange={e => setNewPrepItem({ ...newPrepItem, currency: e.target.value as Currency })}
+                          className="w-full border border-gray-200 rounded-lg p-2.5"
+                          required
+                        >
+                          <option value="TWD">新台幣 (TWD)</option>
+                          <option value="JPY">日圓 (JPY)</option>
+                          <option value="USD">美元 (USD)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">備註</label>
+                        <input
+                          type="text"
+                          value={newPrepItem.notes || ''}
+                          onChange={e => setNewPrepItem({ ...newPrepItem, notes: e.target.value })}
+                          className="w-full border border-gray-200 rounded-lg p-2.5"
+                          placeholder="選填"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                      <button
+                        type="submit"
+                        className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity"
+                      >
+                        新增
+                      </button>
+                    </div>
+                  </form>
+                )}
+                {/* 準備事項列表 */}
+                <div className="bg-white rounded-xl overflow-hidden shadow-lg border border-gray-100">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-gradient-to-r from-gray-50 to-gray-100">
+                        <th className="text-left p-4 text-gray-600">類型</th>
+                        <th className="text-left p-4 text-gray-600">名稱/說明</th>
+                        <th className="text-center p-4 text-gray-600">完成期限</th>
+                        <th className="text-right p-4 text-gray-600">預估成本</th>
+                        <th className="text-center p-4 text-gray-600">狀態</th>
+                        <th className="text-center p-4 text-gray-600">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {!currentTour.prepItems?.length ? (
+                        <tr>
+                          <td colSpan={6} className="p-8 text-center text-gray-500">
+                            尚無準備事項
+                          </td>
+                        </tr>
+                      ) : (
+                        currentTour.prepItems
+                          .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+                          .map(item => (
+                            <tr key={item.id} className="border-t hover:bg-gray-50 transition-colors">
+                              <td className="p-4">
+                                <span className="inline-block px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-800">
+                                  {item.type === 'hotel' ? '住宿' :
+                                   item.type === 'flight' ? '機票' :
+                                   item.type === 'transport' ? '交通' : '其他'}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                <div className="font-medium">{item.name}</div>
+                                {item.notes && (
+                                  <div className="text-sm text-gray-500 mt-1">{item.notes}</div>
+                                )}
+                              </td>
+                              <td className="p-4 text-center">{item.dueDate}</td>
+                              <td className="p-4 text-right">
+                                {item.currency === 'TWD' ? 'NT$' : 
+                                 item.currency === 'JPY' ? '¥' : 
+                                 item.currency === 'USD' ? '$' : ''}{item.cost.toLocaleString()}
+                                <div className="text-sm text-gray-500">
+                                  ≈ NT${(convertToTWD(item.cost, item.currency)).toLocaleString()}
+                                </div>
+                              </td>
+                              <td className="p-4 text-center">
+                                <select
+                                  value={item.status}
+                                  onChange={e => handleUpdatePrepItemStatus(item.id, e.target.value as 'pending' | 'completed')}
+                                  className={`px-3 py-1 rounded-full text-sm border ${
+                                    item.status === 'completed'
+                                      ? 'bg-green-100 text-green-800 border-green-200'
+                                      : 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                                  }`}
+                                >
+                                  <option value="pending">待處理</option>
+                                  <option value="completed">已完成</option>
+                                </select>
+                              </td>
+                              <td className="p-4 text-center">
+                                <button
+                                  onClick={() => handleDeletePrepItem(item.id)}
+                                  className="text-red-500 hover:text-red-700 transition-colors"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               {/* 新增記錄按鈕和表單 */}
@@ -293,12 +680,12 @@ export default function Home() {
                   className="mb-4 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2"
                 >
                   <PlusCircle size={20} />
-                  <span>新增記錄</span>
+                  <span>新增收支記錄</span>
                 </button>
 
                 {showNewEntryForm && (
                   <form onSubmit={handleAddEntry} className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">日期</label>
                         <input
@@ -319,6 +706,19 @@ export default function Home() {
                         >
                           <option value="income">收入</option>
                           <option value="expense">支出</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">幣種</label>
+                        <select
+                          value={newEntry.currency}
+                          onChange={e => setNewEntry({ ...newEntry, currency: e.target.value as Currency })}
+                          className="w-full border border-gray-200 rounded-lg p-2.5"
+                          required
+                        >
+                          <option value="TWD">新台幣 (TWD)</option>
+                          <option value="JPY">日圓 (JPY)</option>
+                          <option value="USD">美元 (USD)</option>
                         </select>
                       </div>
                       <div>
@@ -363,13 +763,14 @@ export default function Home() {
                       <th className="text-left p-4 text-gray-600">說明</th>
                       <th className="text-left p-4 text-gray-600">類型</th>
                       <th className="text-right p-4 text-gray-600">金額</th>
+                      <th className="text-right p-4 text-gray-600">台幣金額</th>
                       <th className="text-center p-4 text-gray-600">操作</th>
                     </tr>
                   </thead>
                   <tbody>
                     {currentTour.entries.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="p-8 text-center text-gray-500">
+                        <td colSpan={6} className="p-8 text-center text-gray-500">
                           尚無記錄
                         </td>
                       </tr>
@@ -402,7 +803,14 @@ export default function Home() {
                             <td className={`p-4 text-right font-medium ${
                               entry.type === 'income' ? 'text-blue-600' : 'text-red-600'
                             }`}>
-                              ${entry.amount.toLocaleString()}
+                              {entry.currency === 'TWD' ? 'NT$' : 
+                               entry.currency === 'JPY' ? '¥' : 
+                               entry.currency === 'USD' ? '$' : ''}{entry.amount.toLocaleString()}
+                            </td>
+                            <td className={`p-4 text-right font-medium ${
+                              entry.type === 'income' ? 'text-blue-600' : 'text-red-600'
+                            }`}>
+                              NT${(convertToTWD(entry.amount, entry.currency)).toLocaleString()}
                             </td>
                             <td className="p-4 text-center">
                               <button
