@@ -12,6 +12,7 @@ import {
   PieChart,
   RefreshCcw,
   Wallet,
+  Edit2
 } from 'lucide-react'
 import {
   Chart as ChartJS,
@@ -40,6 +41,7 @@ type ExchangeRate = {
   rate: number
   lastUpdated: string
 }
+
 type PrepItem = {
   id: number
   type: 'hotel' | 'flight' | 'transport' | 'other'
@@ -67,6 +69,105 @@ type Entry = {
   currency: Currency
   date: string
   amountTWD?: number
+}
+
+interface EditState {
+  isEditing: boolean;
+  editingId: number | null;
+  editingType: 'entry' | 'prepItem' | null;
+}
+
+// 台銀匯率 API URL
+const EXCHANGE_RATE_API_URL = 'https://api.coolman.tw/tw/exchange/bank/taiwan-bank'
+
+// 格式化日期時間
+const formatDateTime = (date: Date) => {
+  return date.toLocaleString('zh-TW', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })
+}
+'use client'
+
+import { useState, useEffect } from 'react'
+import { 
+  Briefcase, 
+  PlusCircle, 
+  MinusCircle, 
+  Trash2,
+  DollarSign,
+  Calendar,
+  FileText,
+  PieChart,
+  RefreshCcw,
+  Wallet,
+  Edit2
+} from 'lucide-react'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js'
+import { Bar } from 'react-chartjs-2'
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+)
+
+type Currency = 'TWD' | 'JPY' | 'USD'
+
+type ExchangeRate = {
+  currency: Currency
+  rate: number
+  lastUpdated: string
+}
+
+type PrepItem = {
+  id: number
+  type: 'hotel' | 'flight' | 'transport' | 'other'
+  name: string
+  status: 'pending' | 'completed'
+  cost: number
+  currency: Currency
+  dueDate: string
+  notes?: string
+}
+
+type Tour = {
+  id: number
+  name: string
+  date: string
+  entries: Entry[]
+  prepItems: PrepItem[]
+}
+
+type Entry = {
+  id: number
+  description: string
+  type: 'income' | 'expense'
+  amount: number
+  currency: Currency
+  date: string
+  amountTWD?: number
+}
+
+interface EditState {
+  isEditing: boolean;
+  editingId: number | null;
+  editingType: 'entry' | 'prepItem' | null;
 }
 
 // 台銀匯率 API URL
@@ -104,7 +205,12 @@ export default function Home() {
   const [showNewTourForm, setShowNewTourForm] = useState(false)
   const [showNewEntryForm, setShowNewEntryForm] = useState(false)
   const [showPrepItemsForm, setShowPrepItemsForm] = useState(false)
-  
+  const [editState, setEditState] = useState<EditState>({
+    isEditing: false,
+    editingId: null,
+    editingType: null
+  });
+
   const [newTour, setNewTour] = useState({
     name: '',
     date: new Date().toISOString().split('T')[0]
@@ -168,7 +274,43 @@ export default function Home() {
   const convertToTWD = (amount: number, currency: Currency) => {
     return amount * exchangeRates[currency].rate
   }
-  // 計算統計數據
+
+  const handleStartEdit = (type: 'entry' | 'prepItem', id: number) => {
+    setEditState({
+      isEditing: true,
+      editingId: id,
+      editingType: type
+    });
+
+    if (type === 'entry') {
+      const entry = currentTour?.entries.find(e => e.id === id);
+      if (entry) {
+        setNewEntry({
+          description: entry.description,
+          type: entry.type,
+          currency: entry.currency,
+          amount: entry.amount,
+          date: entry.date
+        });
+        setShowNewEntryForm(true);
+      }
+    } else {
+      const prepItem = currentTour?.prepItems.find(p => p.id === id);
+      if (prepItem) {
+        setNewPrepItem({
+          type: prepItem.type,
+          name: prepItem.name,
+          status: prepItem.status,
+          cost: prepItem.cost,
+          currency: prepItem.currency,
+          dueDate: prepItem.dueDate,
+          notes: prepItem.notes
+        });
+        setShowPrepItemsForm(true);
+      }
+    }
+  };
+// 計算統計數據
   const calculateTourStats = (tour: Tour) => {
     const calculateTotal = (entries: Entry[], type: 'income' | 'expense') => {
       return entries
@@ -210,60 +352,115 @@ export default function Home() {
 
   // 處理添加新記錄
   const handleAddEntry = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!currentTour) return
+    e.preventDefault();
+    if (!currentTour) return;
 
-    const newEntryWithId = {
-      id: currentTour.entries.length + 1,
-      ...newEntry,
-      amountTWD: convertToTWD(newEntry.amount, newEntry.currency)
+    if (editState.isEditing && editState.editingType === 'entry') {
+      // 更新現有記錄
+      const updatedEntries = currentTour.entries.map(entry =>
+        entry.id === editState.editingId
+          ? {
+              ...entry,
+              ...newEntry,
+              amountTWD: convertToTWD(newEntry.amount, newEntry.currency)
+            }
+          : entry
+      );
+
+      const updatedTour = {
+        ...currentTour,
+        entries: updatedEntries
+      };
+
+      const updatedTours = tours.map(t =>
+        t.id === currentTour.id ? updatedTour : t
+      );
+
+      setTours(updatedTours);
+      localStorage.setItem('tourData', JSON.stringify(updatedTours));
+      setCurrentTour(updatedTour);
+      setEditState({ isEditing: false, editingId: null, editingType: null });
+    } else {
+      // 原有的新增邏輯
+      const newEntryWithId = {
+        id: currentTour.entries.length + 1,
+        ...newEntry,
+        amountTWD: convertToTWD(newEntry.amount, newEntry.currency)
+      };
+
+      const updatedTour = {
+        ...currentTour,
+        entries: [...currentTour.entries, newEntryWithId]
+      };
+
+      const updatedTours = tours.map(t => 
+        t.id === currentTour.id ? updatedTour : t
+      );
+
+      setTours(updatedTours);
+      localStorage.setItem('tourData', JSON.stringify(updatedTours));
+      setCurrentTour(updatedTour);
     }
 
-    const updatedTour = {
-      ...currentTour,
-      entries: [...currentTour.entries, newEntryWithId]
-    }
-
-    const updatedTours = tours.map(t => 
-      t.id === currentTour.id ? updatedTour : t
-    )
-
-    setTours(updatedTours)
-    localStorage.setItem('tourData', JSON.stringify(updatedTours))
-    setCurrentTour(updatedTour)
-    setShowNewEntryForm(false)
+    setShowNewEntryForm(false);
     setNewEntry({
       description: '',
       type: 'income',
       currency: 'TWD',
       amount: 0,
       date: new Date().toISOString().split('T')[0]
-    })
+    });
   }
 
   // 處理添加準備事項
   const handleAddPrepItem = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!currentTour) return
+    e.preventDefault();
+    if (!currentTour) return;
 
-    const newItemWithId = {
-      id: currentTour.prepItems?.length ? Math.max(...currentTour.prepItems.map(item => item.id)) + 1 : 1,
-      ...newPrepItem
+    if (editState.isEditing && editState.editingType === 'prepItem') {
+      const updatedPrepItems = currentTour.prepItems.map(item =>
+        item.id === editState.editingId
+          ? {
+              ...item,
+              ...newPrepItem
+            }
+          : item
+      );
+
+      const updatedTour = {
+        ...currentTour,
+        prepItems: updatedPrepItems
+      };
+
+      const updatedTours = tours.map(t =>
+        t.id === currentTour.id ? updatedTour : t
+      );
+
+      setTours(updatedTours);
+      localStorage.setItem('tourData', JSON.stringify(updatedTours));
+      setCurrentTour(updatedTour);
+      setEditState({ isEditing: false, editingId: null, editingType: null });
+    } else {
+      const newItemWithId = {
+        id: currentTour.prepItems?.length ? Math.max(...currentTour.prepItems.map(item => item.id)) + 1 : 1,
+        ...newPrepItem
+      };
+
+      const updatedTour = {
+        ...currentTour,
+        prepItems: [...(currentTour.prepItems || []), newItemWithId]
+      };
+
+      const updatedTours = tours.map(t => 
+        t.id === currentTour.id ? updatedTour : t
+      );
+
+      setTours(updatedTours);
+      localStorage.setItem('tourData', JSON.stringify(updatedTours));
+      setCurrentTour(updatedTour);
     }
 
-    const updatedTour = {
-      ...currentTour,
-      prepItems: [...(currentTour.prepItems || []), newItemWithId]
-    }
-
-    const updatedTours = tours.map(t => 
-      t.id === currentTour.id ? updatedTour : t
-    )
-
-    setTours(updatedTours)
-    localStorage.setItem('tourData', JSON.stringify(updatedTours))
-    setCurrentTour(updatedTour)
-    setShowPrepItemsForm(false)
+    setShowPrepItemsForm(false);
     setNewPrepItem({
       type: 'hotel',
       name: '',
@@ -272,7 +469,7 @@ export default function Home() {
       currency: 'TWD',
       dueDate: new Date().toISOString().split('T')[0],
       notes: ''
-    })
+    });
   }
 
   // 處理更新準備事項狀態
@@ -344,7 +541,7 @@ export default function Home() {
   const handleUpdateRates = async () => {
     await fetchExchangeRates()
   }
-  return (
+return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
       <div className="max-w-7xl mx-auto">
         {/* 標題 */}
@@ -363,21 +560,24 @@ export default function Home() {
           <div className="space-x-2">
             <button
               onClick={handleUpdateRates}
-              className={`px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl 
-                hover:opacity-90 transition-opacity flex items-center gap-2 ${
-                isUpdatingRates ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
+              className="group relative overflow-hidden px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isUpdatingRates}
             >
-              <RefreshCcw size={20} className={isUpdatingRates ? 'animate-spin' : ''} />
-              <span>更新匯率</span>
+              <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
+              <div className="relative flex items-center gap-2">
+                <RefreshCcw size={20} className={isUpdatingRates ? 'animate-spin' : ''} />
+                <span>更新匯率</span>
+              </div>
             </button>
             <button
               onClick={handleClearAllData}
-              className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2"
+              className="group relative overflow-hidden px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 hover:scale-105"
             >
-              <Trash2 size={20} />
-              <span>清除所有數據</span>
+              <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
+              <div className="relative flex items-center gap-2">
+                <Trash2 size={20} />
+                <span>清除所有數據</span>
+              </div>
             </button>
           </div>
         </div>
@@ -420,10 +620,13 @@ export default function Home() {
             </select>
             <button
               onClick={() => setShowNewTourForm(true)}
-              className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2"
+              className="group relative overflow-hidden px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:shadow-lg transition-all duration-300 hover:scale-105"
             >
-              <PlusCircle size={20} />
-              <span>新增團體</span>
+              <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
+              <div className="relative flex items-center gap-2">
+                <PlusCircle size={20} />
+                <span>新增團體</span>
+              </div>
             </button>
           </div>
 
@@ -463,6 +666,7 @@ export default function Home() {
               </div>
             </form>
           )}
+
           {currentTour && (
             <>
               {/* 收支統計 */}
@@ -499,23 +703,28 @@ export default function Home() {
                   )
                 })}
               </div>
-
-              {/* 準備事項區域 */}
+{/* 準備事項區域 */}
               <div className="mb-8">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-gray-700">準備事項清單</h3>
                   <button
                     onClick={() => setShowPrepItemsForm(!showPrepItemsForm)}
-                    className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2"
+                    className="group relative overflow-hidden px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:shadow-lg transition-all duration-300 hover:scale-105"
                   >
-                    <PlusCircle size={16} />
-                    <span>新增準備事項</span>
+                    <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
+                    <div className="relative flex items-center gap-2">
+                      <PlusCircle size={16} />
+                      <span>新增準備事項</span>
+                    </div>
                   </button>
                 </div>
 
                 {/* 準備事項表單 */}
                 {showPrepItemsForm && (
                   <form onSubmit={handleAddPrepItem} className="mb-6 bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+                    <h2 className="text-xl font-bold mb-4">
+                      {editState.isEditing && editState.editingType === 'prepItem' ? '編輯準備事項' : '新增準備事項'}
+                    </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">類型</label>
@@ -591,11 +800,12 @@ export default function Home() {
                         type="submit"
                         className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity"
                       >
-                        新增
+                        {editState.isEditing ? '更新' : '新增'}
                       </button>
                     </div>
                   </form>
                 )}
+
                 {/* 準備事項列表 */}
                 <div className="bg-white rounded-xl overflow-hidden shadow-lg border border-gray-100">
                   <table className="w-full">
@@ -658,12 +868,20 @@ export default function Home() {
                                 </select>
                               </td>
                               <td className="p-4 text-center">
-                                <button
-                                  onClick={() => handleDeletePrepItem(item.id)}
-                                  className="text-red-500 hover:text-red-700 transition-colors"
-                                >
-                                  <Trash2 size={18} />
-                                </button>
+                                <div className="flex justify-center gap-2">
+                                  <button
+                                    onClick={() => handleStartEdit('prepItem', item.id)}
+                                    className="text-blue-500 hover:text-blue-700 transition-colors"
+                                  >
+                                    <Edit2 size={18} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeletePrepItem(item.id)}
+                                    className="text-red-500 hover:text-red-700 transition-colors"
+                                  >
+                                    <Trash2 size={18} />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))
@@ -672,8 +890,7 @@ export default function Home() {
                   </table>
                 </div>
               </div>
-
-              {/* 新增記錄按鈕和表單 */}
+{/* 新增記錄按鈕和表單 */}
               <div className="mb-8">
                 <button
                   onClick={() => setShowNewEntryForm(!showNewEntryForm)}
@@ -685,6 +902,9 @@ export default function Home() {
 
                 {showNewEntryForm && (
                   <form onSubmit={handleAddEntry} className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                    <h2 className="text-xl font-bold mb-4">
+                      {editState.isEditing && editState.editingType === 'entry' ? '編輯收支記錄' : '新增收支記錄'}
+                    </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">日期</label>
@@ -692,7 +912,7 @@ export default function Home() {
                           type="date"
                           value={newEntry.date}
                           onChange={e => setNewEntry({ ...newEntry, date: e.target.value })}
-                          className="w-full border border-gray-200 rounded-lg p-2.5"
+                          className="w-full border border-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
                           required
                         />
                       </div>
@@ -701,7 +921,7 @@ export default function Home() {
                         <select
                           value={newEntry.type}
                           onChange={e => setNewEntry({ ...newEntry, type: e.target.value as 'income' | 'expense' })}
-                          className="w-full border border-gray-200 rounded-lg p-2.5"
+                          className="w-full border border-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
                           required
                         >
                           <option value="income">收入</option>
@@ -713,7 +933,7 @@ export default function Home() {
                         <select
                           value={newEntry.currency}
                           onChange={e => setNewEntry({ ...newEntry, currency: e.target.value as Currency })}
-                          className="w-full border border-gray-200 rounded-lg p-2.5"
+                          className="w-full border border-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
                           required
                         >
                           <option value="TWD">新台幣 (TWD)</option>
@@ -727,7 +947,7 @@ export default function Home() {
                           type="number"
                           value={newEntry.amount}
                           onChange={e => setNewEntry({ ...newEntry, amount: Number(e.target.value) })}
-                          className="w-full border border-gray-200 rounded-lg p-2.5"
+                          className="w-full border border-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
                           required
                         />
                       </div>
@@ -737,7 +957,7 @@ export default function Home() {
                           type="text"
                           value={newEntry.description}
                           onChange={e => setNewEntry({ ...newEntry, description: e.target.value })}
-                          className="w-full border border-gray-200 rounded-lg p-2.5"
+                          className="w-full border border-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
                           required
                         />
                       </div>
@@ -747,7 +967,7 @@ export default function Home() {
                         type="submit"
                         className="px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity"
                       >
-                        新增
+                        {editState.isEditing ? '更新' : '新增'}
                       </button>
                     </div>
                   </form>
@@ -813,12 +1033,20 @@ export default function Home() {
                               NT${(convertToTWD(entry.amount, entry.currency)).toLocaleString()}
                             </td>
                             <td className="p-4 text-center">
-                              <button
-                                onClick={() => handleDeleteEntry(entry.id)}
-                                className="text-red-500 hover:text-red-700 transition-colors"
-                              >
-                                <Trash2 size={18} />
-                              </button>
+                              <div className="flex justify-center gap-2">
+                                <button
+                                  onClick={() => handleStartEdit('entry', entry.id)}
+                                  className="text-blue-500 hover:text-blue-700 transition-colors"
+                                >
+                                  <Edit2 size={18} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteEntry(entry.id)}
+                                  className="text-red-500 hover:text-red-700 transition-colors"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -826,8 +1054,7 @@ export default function Home() {
                   </tbody>
                 </table>
               </div>
-
-              {/* 收支圖表 */}
+{/* 收支圖表 */}
               {currentTour.entries.length > 0 && (
                 <div className="mt-8 bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
                   <Bar
@@ -841,30 +1068,92 @@ export default function Home() {
                           calculateTourStats(currentTour).profit
                         ],
                         backgroundColor: [
-                          'rgba(59, 130, 246, 0.5)',
-                          'rgba(239, 68, 68, 0.5)',
-                          'rgba(16, 185, 129, 0.5)'
+                          'rgba(59, 130, 246, 0.5)',  // 藍色
+                          'rgba(239, 68, 68, 0.5)',   // 紅色
+                          'rgba(16, 185, 129, 0.5)'   // 綠色
                         ],
                         borderColor: [
                           'rgb(59, 130, 246)',
                           'rgb(239, 68, 68)',
                           'rgb(16, 185, 129)'
                         ],
-                        borderWidth: 1
+                        borderWidth: 1,
+                        borderRadius: 8,
+                        hoverBackgroundColor: [
+                          'rgba(59, 130, 246, 0.7)',
+                          'rgba(239, 68, 68, 0.7)',
+                          'rgba(16, 185, 129, 0.7)'
+                        ]
                       }]
                     }}
                     options={{
                       responsive: true,
+                      maintainAspectRatio: false,
                       plugins: {
                         legend: {
                           display: false
                         },
                         title: {
                           display: true,
-                          text: '收支統計圖表'
+                          text: '收支統計圖表',
+                          font: {
+                            size: 16,
+                            weight: 'bold'
+                          },
+                          padding: {
+                            bottom: 20
+                          },
+                          color: '#374151'
+                        },
+                        tooltip: {
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          titleColor: '#374151',
+                          bodyColor: '#374151',
+                          bodyFont: {
+                            size: 14
+                          },
+                          borderColor: 'rgba(0, 0, 0, 0.1)',
+                          borderWidth: 1,
+                          padding: 12,
+                          displayColors: true,
+                          callbacks: {
+                            label: function(context) {
+                              return `NT$ ${context.parsed.y.toLocaleString()}`;
+                            }
+                          }
+                        }
+                      },
+                      scales: {
+                        y: {
+                          beginAtZero: true,
+                          grid: {
+                            color: 'rgba(0, 0, 0, 0.05)',
+                            drawBorder: false
+                          },
+                          ticks: {
+                            callback: function(value) {
+                              return 'NT$ ' + value.toLocaleString();
+                            },
+                            font: {
+                              size: 12
+                            },
+                            color: '#6B7280'
+                          }
+                        },
+                        x: {
+                          grid: {
+                            display: false
+                          },
+                          ticks: {
+                            font: {
+                              size: 12
+                            },
+                            color: '#6B7280'
+                          }
                         }
                       }
                     }}
+                    height={300}
                   />
                 </div>
               )}
