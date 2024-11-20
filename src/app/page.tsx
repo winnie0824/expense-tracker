@@ -481,7 +481,7 @@ export default function Home() {
   }
   // 匯出 Excel
 const handleExportExcel = async () => {
-    if (!currentTour) return;
+    if (!currentTour) return
 
     try {
       // 動態導入 xlsx
@@ -1145,8 +1145,10 @@ const handleExportExcel = async () => {
 )}
 
 {/* 閉合標籤 */}
-            </>
+           </>
           )}
         </div>
       </div>
     </div>
+  )
+}
