@@ -737,172 +737,164 @@ const handleExportExcel = async () => {
     </button>
   </div>
 
-  {/* 準備事項表單 */}
-  {showPrepItemsForm && (
-    <form onSubmit={handleAddPrepItem} className="mb-6 bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-      {/* ... 準備事項表單內容 ... */}
-    </form>
-  )}
-
-  {/* 準備事項列表 */}
-  <div className="bg-white rounded-xl overflow-hidden shadow-lg border border-gray-100">
-    <table className="w-full">
-      {/* ... 準備事項表格內容 ... */}
-    </table>
-  </div>
-</div>
-             {/* 新增記錄按鈕和表單 */}
-<div className="mb-8">
-  <button
-    onClick={() => setShowNewEntryForm(!showNewEntryForm)}
-    className="mb-4 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2"
-  >
-    <PlusCircle size={20} />
-    <span>新增收支記錄</span>
-  </button>
-
-  {showNewEntryForm && (
-    <form onSubmit={handleAddEntry} className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-      <h2 className="text-xl font-bold mb-4">
-        {editState.isEditing && editState.editingType === 'entry' ? '編輯收支記錄' : '新增收支記錄'}
-      </h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">日期</label>
-          <input
-            type="date"
-            value={newEntry.date}
-            onChange={e => setNewEntry({ ...newEntry, date: e.target.value })}
-            className="w-full border border-gray-200 rounded-lg p-2.5"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">類型</label>
-          <select
-            value={newEntry.type}
-            onChange={e => setNewEntry({ ...newEntry, type: e.target.value as 'income' | 'expense' })}
-            className="w-full border border-gray-200 rounded-lg p-2.5"
-            required
-          >
-            <option value="income">收入</option>
-            <option value="expense">支出</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">幣種</label>
-          <select
-            value={newEntry.currency}
-            onChange={e => setNewEntry({ ...newEntry, currency: e.target.value as Currency })}
-            className="w-full border border-gray-200 rounded-lg p-2.5"
-            required
-          >
-            <option value="TWD">新台幣 (TWD)</option>
-            <option value="JPY">日圓 (JPY)</option>
-            <option value="USD">美元 (USD)</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">金額</label>
-          <input
-            type="number"
-            value={newEntry.amount}
-            onChange={e => setNewEntry({ ...newEntry, amount: Number(e.target.value) })}
-            className="w-full border border-gray-200 rounded-lg p-2.5"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">說明</label>
-          <input
-            type="text"
-            value={newEntry.description}
-            onChange={e => setNewEntry({ ...newEntry, description: e.target.value })}
-            className="w-full border border-gray-200 rounded-lg p-2.5"
-            required
-          />
-        </div>
-      </div>
-      <div className="mt-4 flex justify-end">
-        <button
-          type="submit"
-          className="px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity"
+ {/* 準備事項表單 */}
+{showPrepItemsForm && (
+  <form onSubmit={handleAddPrepItem} className="mb-6 bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+    <h2 className="text-xl font-bold mb-4">
+      {editState.isEditing && editState.editingType === 'prepItem' ? '編輯準備事項' : '新增準備事項'}
+    </h2>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">類型</label>
+        <select
+          value={newPrepItem.type}
+          onChange={e => setNewPrepItem({ ...newPrepItem, type: e.target.value as PrepItem['type'] })}
+          className="w-full border border-gray-200 rounded-lg p-2.5"
+          required
         >
-          {editState.isEditing ? '更新' : '新增'}
-        </button>
+          <option value="hotel">住宿</option>
+          <option value="flight">機票</option>
+          <option value="transport">交通</option>
+          <option value="other">其他</option>
+        </select>
       </div>
-    </form>
-  )}
-</div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">名稱/說明</label>
+        <input
+          type="text"
+          value={newPrepItem.name}
+          onChange={e => setNewPrepItem({ ...newPrepItem, name: e.target.value })}
+          className="w-full border border-gray-200 rounded-lg p-2.5"
+          required
+          placeholder="例：東京希爾頓飯店"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">完成期限</label>
+        <input
+          type="date"
+          value={newPrepItem.dueDate}
+          onChange={e => setNewPrepItem({ ...newPrepItem, dueDate: e.target.value })}
+          className="w-full border border-gray-200 rounded-lg p-2.5"
+          required
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">預估成本</label>
+        <input
+          type="number"
+          value={newPrepItem.cost}
+          onChange={e => setNewPrepItem({ ...newPrepItem, cost: Number(e.target.value) })}
+          className="w-full border border-gray-200 rounded-lg p-2.5"
+          required
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">幣種</label>
+        <select
+          value={newPrepItem.currency}
+          onChange={e => setNewPrepItem({ ...newPrepItem, currency: e.target.value as Currency })}
+          className="w-full border border-gray-200 rounded-lg p-2.5"
+          required
+        >
+          <option value="TWD">新台幣 (TWD)</option>
+          <option value="JPY">日圓 (JPY)</option>
+          <option value="USD">美元 (USD)</option>
+        </select>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">備註</label>
+        <input
+          type="text"
+          value={newPrepItem.notes || ''}
+          onChange={e => setNewPrepItem({ ...newPrepItem, notes: e.target.value })}
+          className="w-full border border-gray-200 rounded-lg p-2.5"
+          placeholder="選填"
+        />
+      </div>
+    </div>
+    <div className="mt-4 flex justify-end">
+      <button
+        type="submit"
+        className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity"
+      >
+        {editState.isEditing ? '更新' : '新增'}
+      </button>
+    </div>
+  </form>
+)}
 
-{/* 記錄表格 */}
-<div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+{/* 準備事項列表 */}
+<div className="bg-white rounded-xl overflow-hidden shadow-lg border border-gray-100">
   <table className="w-full">
     <thead>
       <tr className="bg-gradient-to-r from-gray-50 to-gray-100">
-        <th className="text-left p-4 text-gray-600">日期</th>
-        <th className="text-left p-4 text-gray-600">說明</th>
         <th className="text-left p-4 text-gray-600">類型</th>
-        <th className="text-right p-4 text-gray-600">金額</th>
-        <th className="text-right p-4 text-gray-600">台幣金額</th>
+        <th className="text-left p-4 text-gray-600">名稱/說明</th>
+        <th className="text-center p-4 text-gray-600">完成期限</th>
+        <th className="text-right p-4 text-gray-600">預估成本</th>
+        <th className="text-center p-4 text-gray-600">狀態</th>
         <th className="text-center p-4 text-gray-600">操作</th>
       </tr>
     </thead>
     <tbody>
-      {currentTour.entries.length === 0 ? (
+      {!currentTour.prepItems?.length ? (
         <tr>
           <td colSpan={6} className="p-8 text-center text-gray-500">
-            尚無記錄
+            尚無準備事項
           </td>
         </tr>
       ) : (
-        currentTour.entries
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-          .map(entry => (
-            <tr key={entry.id} className="border-t hover:bg-gray-50 transition-colors">
-              <td className="p-4">{entry.date}</td>
-              <td className="p-4">{entry.description}</td>
+        currentTour.prepItems
+          .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+          .map(item => (
+            <tr key={item.id} className="border-t hover:bg-gray-50 transition-colors">
               <td className="p-4">
-                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${
-                  entry.type === 'income' 
-                    ? 'bg-blue-100 text-blue-800' 
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {entry.type === 'income' ? (
-                    <>
-                      <PlusCircle size={14} />
-                      <span>收入</span>
-                    </>
-                  ) : (
-                    <>
-                      <MinusCircle size={14} />
-                      <span>支出</span>
-                    </>
-                  )}
+                <span className="inline-block px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-800">
+                  {item.type === 'hotel' ? '住宿' :
+                   item.type === 'flight' ? '機票' :
+                   item.type === 'transport' ? '交通' : '其他'}
                 </span>
               </td>
-              <td className={`p-4 text-right font-medium ${
-                entry.type === 'income' ? 'text-blue-600' : 'text-red-600'
-              }`}>
-                {entry.currency === 'TWD' ? 'NT$' : 
-                 entry.currency === 'JPY' ? '¥' : 
-                 entry.currency === 'USD' ? '$' : ''}{entry.amount.toLocaleString()}
+              <td className="p-4">
+                <div className="font-medium">{item.name}</div>
+                {item.notes && (
+                  <div className="text-sm text-gray-500 mt-1">{item.notes}</div>
+                )}
               </td>
-              <td className={`p-4 text-right font-medium ${
-                entry.type === 'income' ? 'text-blue-600' : 'text-red-600'
-              }`}>
-                NT${(convertToTWD(entry.amount, entry.currency)).toLocaleString()}
+              <td className="p-4 text-center">{item.dueDate}</td>
+              <td className="p-4 text-right">
+                {item.currency === 'TWD' ? 'NT$' : 
+                 item.currency === 'JPY' ? '¥' : 
+                 item.currency === 'USD' ? '$' : ''}{item.cost.toLocaleString()}
+                <div className="text-sm text-gray-500">
+                  ≈ NT${(convertToTWD(item.cost, item.currency)).toLocaleString()}
+                </div>
+              </td>
+              <td className="p-4 text-center">
+                <select
+                  value={item.status}
+                  onChange={e => handleUpdatePrepItemStatus(item.id, e.target.value as 'pending' | 'completed')}
+                  className={`px-3 py-1 rounded-full text-sm border ${
+                    item.status === 'completed'
+                      ? 'bg-green-100 text-green-800 border-green-200'
+                      : 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                  }`}
+                >
+                  <option value="pending">待處理</option>
+                  <option value="completed">已完成</option>
+                </select>
               </td>
               <td className="p-4 text-center">
                 <div className="flex justify-center gap-2">
                   <button
-                    onClick={() => handleStartEdit('entry', entry.id)}
+                    onClick={() => handleStartEdit('prepItem', item.id)}
                     className="text-blue-500 hover:text-blue-700 transition-colors"
                   >
                     <Edit2 size={18} />
                   </button>
                   <button
-                    onClick={() => handleDeleteEntry(entry.id)}
+                    onClick={() => handleDeletePrepItem(item.id)}
                     className="text-red-500 hover:text-red-700 transition-colors"
                   >
                     <Trash2 size={18} />
@@ -915,75 +907,3 @@ const handleExportExcel = async () => {
     </tbody>
   </table>
 </div>
-
-{/* 收支圖表 */}
-{currentTour.entries.length > 0 && (
-  <div className="mt-8 bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-    <Bar
-      data={{
-        labels: ['收入', '支出', '利潤'],
-        datasets: [{
-          label: '金額',
-          data: [
-            calculateTourStats(currentTour).income,
-            calculateTourStats(currentTour).expense,
-            calculateTourStats(currentTour).profit
-          ],
-          backgroundColor: [
-            'rgba(59, 130, 246, 0.5)',  // 藍色
-            'rgba(239, 68, 68, 0.5)',   // 紅色
-            'rgba(16, 185, 129, 0.5)'   // 綠色
-          ],
-          borderColor: [
-            'rgb(59, 130, 246)',
-            'rgb(239, 68, 68)',
-            'rgb(16, 185, 129)'
-          ],
-          borderWidth: 1,
-          borderRadius: 8,
-          hoverBackgroundColor: [
-            'rgba(59, 130, 246, 0.7)',
-            'rgba(239, 68, 68, 0.7)',
-            'rgba(16, 185, 129, 0.7)'
-          ]
-        }]
-      }}
-      options={{
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            display: false
-          },
-          title: {
-            display: true,
-            text: '收支統計圖表',
-            font: {
-              size: 16,
-              weight: 'bold'
-            },
-            padding: {
-              bottom: 20
-            },
-            color: '#374151'
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            grid: {
-              color: 'rgba(0, 0, 0, 0.05)',
-              drawBorder: false
-            },
-            ticks: {
-              callback: function(value) {
-                return 'NT$ ' + Number(value).toLocaleString();
-              }
-            }
-          }
-        }
-      }}
-      style={{ height: '300px' }}
-    />
-  </div>
-)}
