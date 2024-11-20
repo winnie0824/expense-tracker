@@ -27,6 +27,7 @@ import {
 
 // 動態導入 Bar 元件
 const Bar = dynamic(() => import('react-chartjs-2').then(mod => mod.Bar), { ssr: false })
+const Bar = dynamic(() => import('react-chartjs-2').then(mod => mod.Bar), { ssr: false })
 
 ChartJS.register(
   CategoryScale,
