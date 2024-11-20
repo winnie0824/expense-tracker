@@ -25,6 +25,7 @@ import {
   Legend,
 } from 'chart.js'
 
+// 動態導入 Bar 元件
 const Bar = dynamic(() => import('react-chartjs-2').then(mod => mod.Bar), { ssr: false })
 
 ChartJS.register(
@@ -81,7 +82,6 @@ interface EditState {
 
 const EXCHANGE_RATE_API_URL = 'https://api.coolman.tw/tw/exchange/bank/taiwan-bank'
 const BACKUP_EXCHANGE_RATE_API_URL = 'https://api.example.com/exchange-rates'
-
 const formatDateTime = (date: Date): string => {
   return date.toLocaleString('zh-TW', {
     year: 'numeric',
@@ -110,7 +110,8 @@ const getFromLocalStorage = (key: string, defaultValue: any): any => {
     return defaultValue
   }
 }
-const Page: React.FC = () => {
+
+export default function Page(): JSX.Element {
   const [tours, setTours] = useState<Tour[]>(() => {
     if (typeof window !== 'undefined') {
       return getFromLocalStorage('tourData', [])
@@ -134,7 +135,6 @@ const Page: React.FC = () => {
     editingId: null,
     editingType: null
   })
-
   const [newTour, setNewTour] = useState({
     name: '',
     date: new Date().toISOString().split('T')[0]
@@ -157,6 +157,7 @@ const Page: React.FC = () => {
     dueDate: new Date().toISOString().split('T')[0],
     notes: ''
   })
+
   const fetchExchangeRates = async () => {
     setIsUpdatingRates(true)
     try {
@@ -195,7 +196,6 @@ const Page: React.FC = () => {
     const interval = setInterval(fetchExchangeRates, 1800000)
     return () => clearInterval(interval)
   }, [])
-
   const convertToTWD = (amount: number, currency: Currency): number => {
     const rate = exchangeRates[currency]?.rate || 1
     return amount * rate
@@ -256,8 +256,7 @@ const Page: React.FC = () => {
         ...currentTour,
         entries: updatedEntries
       }
-
-      const updatedTours = tours.map(t =>
+        const updatedTours = tours.map(t =>
         t.id === currentTour.id ? updatedTour : t
       )
 
@@ -295,6 +294,7 @@ const Page: React.FC = () => {
       date: new Date().toISOString().split('T')[0]
     })
   }
+
   const handleAddPrepItem = (e: React.FormEvent) => {
     e.preventDefault()
     if (!currentTour) return
@@ -322,7 +322,8 @@ const Page: React.FC = () => {
       saveToLocalStorage('tourData', updatedTours)
       setCurrentTour(updatedTour)
       setEditState({ isEditing: false, editingId: null, editingType: null })
-      } else {
+    }
+    else {
       const newItemWithId = {
         id: currentTour.prepItems?.length ? Math.max(...currentTour.prepItems.map(item => item.id)) + 1 : 1,
         ...newPrepItem
@@ -372,6 +373,7 @@ const Page: React.FC = () => {
     saveToLocalStorage('tourData', updatedTours)
     setCurrentTour(updatedTour)
   }
+
   const handleDeletePrepItem = (itemId: number) => {
     if (!currentTour || !window.confirm('確定要刪除此準備事項？')) return
 
@@ -388,7 +390,6 @@ const Page: React.FC = () => {
     saveToLocalStorage('tourData', updatedTours)
     setCurrentTour(updatedTour)
   }
-
   const handleDeleteEntry = (entryId: number) => {
     if (!currentTour || !window.confirm('確定要刪除這筆記錄嗎？')) return
 
@@ -457,7 +458,7 @@ const Page: React.FC = () => {
     if (!currentTour) return
 
     try {
-      const XLSX = await import('xlsx');
+      const XLSX = await import('xlsx')
 
       const prepItemsData = currentTour.prepItems.map(item => ({
         日期: item.dueDate,
@@ -470,7 +471,7 @@ const Page: React.FC = () => {
         幣種: item.currency,
         台幣金額: convertToTWD(item.cost, item.currency),
         備註: item.notes || ''
-      }));
+      }))
 
       const entriesData = currentTour.entries.map(entry => ({
         日期: entry.date,
@@ -479,9 +480,9 @@ const Page: React.FC = () => {
         金額: entry.amount,
         幣種: entry.currency,
         台幣金額: convertToTWD(entry.amount, entry.currency)
-      }));
+      }))
 
-      const stats = calculateTourStats(currentTour);
+      const stats = calculateTourStats(currentTour)
       const summaryData = [{
         項目: '總收入',
         金額: stats.income
@@ -491,23 +492,23 @@ const Page: React.FC = () => {
       }, {
         項目: '淨利潤',
         金額: stats.profit
-      }];
+      }]
 
-      const wb = XLSX.utils.book_new();
+      const wb = XLSX.utils.book_new()
         
-      const ws1 = XLSX.utils.json_to_sheet(prepItemsData);
-      XLSX.utils.book_append_sheet(wb, ws1, "準備事項");
+      const ws1 = XLSX.utils.json_to_sheet(prepItemsData)
+      XLSX.utils.book_append_sheet(wb, ws1, "準備事項")
         
-      const ws2 = XLSX.utils.json_to_sheet(entriesData);
-      XLSX.utils.book_append_sheet(wb, ws2, "收支記錄");
+      const ws2 = XLSX.utils.json_to_sheet(entriesData)
+      XLSX.utils.book_append_sheet(wb, ws2, "收支記錄")
         
-      const ws3 = XLSX.utils.json_to_sheet(summaryData);
-      XLSX.utils.book_append_sheet(wb, ws3, "統計摘要");
+      const ws3 = XLSX.utils.json_to_sheet(summaryData)
+      XLSX.utils.book_append_sheet(wb, ws3, "統計摘要")
         
-      XLSX.writeFile(wb, `${currentTour.name}-報表.xlsx`);
+      XLSX.writeFile(wb, `${currentTour.name}-報表.xlsx`)
     } catch (error) {
-      console.error('匯出 Excel 失敗:', error);
-      alert('匯出 Excel 失敗，請稍後再試');
+      console.error('匯出 Excel 失敗:', error)
+      alert('匯出 Excel 失敗，請稍後再試')
     }
   }
   return (
@@ -952,156 +953,157 @@ const Page: React.FC = () => {
                     </form>
                   )}
                   {/* 記錄表格 */}
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-gradient-to-r from-gray-50 to-gray-100">
-                        <th className="text-left p-4 text-gray-600">日期</th>
-                        <th className="text-left p-4 text-gray-600">說明</th>
-                        <th className="text-left p-4 text-gray-600">類型</th>
-                        <th className="text-right p-4 text-gray-600">金額</th>
-                        <th className="text-right p-4 text-gray-600">台幣金額</th>
-                        <th className="text-center p-4 text-gray-600">操作</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {currentTour.entries.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="p-8 text-center text-gray-500">
-                            尚無記錄
-                          </td>
+                  <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden mt-6">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-gradient-to-r from-gray-50 to-gray-100">
+                          <th className="text-left p-4 text-gray-600">日期</th>
+                          <th className="text-left p-4 text-gray-600">說明</th>
+                          <th className="text-left p-4 text-gray-600">類型</th>
+                          <th className="text-right p-4 text-gray-600">金額</th>
+                          <th className="text-right p-4 text-gray-600">台幣金額</th>
+                          <th className="text-center p-4 text-gray-600">操作</th>
                         </tr>
-                      ) : (
-                        currentTour.entries
-                          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                          .map(entry => (
-                            <tr key={entry.id} className="border-t hover:bg-gray-50 transition-colors">
-                              <td className="p-4">{entry.date}</td>
-                              <td className="p-4">{entry.description}</td>
-                              <td className="p-4">
-                                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${
-                                  entry.type === 'income' 
-                                    ? 'bg-blue-100 text-blue-800' 
-                                    : 'bg-red-100 text-red-800'
+                      </thead>
+                      <tbody>
+                        {currentTour.entries.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="p-8 text-center text-gray-500">
+                              尚無記錄
+                            </td>
+                          </tr>
+                        ) : (
+                          currentTour.entries
+                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                            .map(entry => (
+                              <tr key={entry.id} className="border-t hover:bg-gray-50 transition-colors">
+                                <td className="p-4">{entry.date}</td>
+                                <td className="p-4">{entry.description}</td>
+                                <td className="p-4">
+                                  <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${
+                                    entry.type === 'income' 
+                                      ? 'bg-blue-100 text-blue-800' 
+                                      : 'bg-red-100 text-red-800'
+                                  }`}>
+                                    {entry.type === 'income' ? (
+                                      <>
+                                        <PlusCircle size={14} />
+                                        <span>收入</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <MinusCircle size={14} />
+                                        <span>支出</span>
+                                      </>
+                                    )}
+                                  </span>
+                                </td>
+                                <td className={`p-4 text-right font-medium ${
+                                  entry.type === 'income' ? 'text-blue-600' : 'text-red-600'
                                 }`}>
-                                  {entry.type === 'income' ? (
-                                    <>
-                                      <PlusCircle size={14} />
-                                      <span>收入</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <MinusCircle size={14} />
-                                      <span>支出</span>
-                                    </>
-                                  )}
-                                </span>
-                              </td>
-                              <td className={`p-4 text-right font-medium ${
-                                entry.type === 'income' ? 'text-blue-600' : 'text-red-600'
-                              }`}>
-                                {entry.currency === 'TWD' ? 'NT$' : 
-                                 entry.currency === 'JPY' ? '¥' : 
-                                 entry.currency === 'USD' ? '$' : ''}{entry.amount.toLocaleString()}
-                              </td>
-                              <td className={`p-4 text-right font-medium ${
-                                entry.type === 'income' ? 'text-blue-600' : 'text-red-600'
-                              }`}>
-                                NT${(convertToTWD(entry.amount, entry.currency)).toLocaleString()}
-                              </td>
-                              <td className="p-4 text-center">
-                                <div className="flex justify-center gap-2">
-                                  <button
-                                    onClick={() => handleStartEdit('entry', entry.id)}
-                                    className="text-blue-500 hover:text-blue-700 transition-colors"
-                                  >
-                                    <Edit2 size={18} />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteEntry(entry.id)}
-                                    className="text-red-500 hover:text-red-700 transition-colors"
-                                  >
-                                    <Trash2 size={18} />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                                  {entry.currency === 'TWD' ? 'NT$' : 
+                                   entry.currency === 'JPY' ? '¥' : 
+                                   entry.currency === 'USD' ? '$' : ''}{entry.amount.toLocaleString()}
+                                </td>
+                                <td className={`p-4 text-right font-medium ${
+                                  entry.type === 'income' ? 'text-blue-600' : 'text-red-600'
+                                }`}>
+                                  NT${(convertToTWD(entry.amount, entry.currency)).toLocaleString()}
+                                </td>
+                                <td className="p-4 text-center">
+                                  <div className="flex justify-center gap-2">
+                                    <button
+                                      onClick={() => handleStartEdit('entry', entry.id)}
+                                      className="text-blue-500 hover:text-blue-700 transition-colors"
+                                    >
+                                      <Edit2 size={18} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteEntry(entry.id)}
+                                      className="text-red-500 hover:text-red-700 transition-colors"
+                                    >
+                                      <Trash2 size={18} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                   {/* 收支圖表 */}
-                {currentTour.entries.length > 0 && (
-                  <div className="mt-8 bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                    <Bar
-                      data={{
-                        labels: ['收入', '支出', '利潤'],
-                        datasets: [{
-                          label: '金額',
-                          data: [
-                            calculateTourStats(currentTour).income,
-                            calculateTourStats(currentTour).expense,
-                            calculateTourStats(currentTour).profit
-                          ],
-                          backgroundColor: [
-                            'rgba(59, 130, 246, 0.5)',  // 藍色
-                            'rgba(239, 68, 68, 0.5)',   // 紅色
-                            'rgba(16, 185, 129, 0.5)'   // 綠色
-                          ],
-                          borderColor: [
-                            'rgb(59, 130, 246)',
-                            'rgb(239, 68, 68)',
-                            'rgb(16, 185, 129)'
-                          ],
-                          borderWidth: 1,
-                          borderRadius: 8,
-                          hoverBackgroundColor: [
-                            'rgba(59, 130, 246, 0.7)',
-                            'rgba(239, 68, 68, 0.7)',
-                            'rgba(16, 185, 129, 0.7)'
-                          ]
-                        }]
-                      }}
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: {
-                            display: false
+                  {currentTour.entries.length > 0 && (
+                    <div className="mt-8 bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                      <Bar
+                        data={{
+                          labels: ['收入', '支出', '利潤'],
+                          datasets: [{
+                            label: '金額',
+                            data: [
+                              calculateTourStats(currentTour).income,
+                              calculateTourStats(currentTour).expense,
+                              calculateTourStats(currentTour).profit
+                            ],
+                            backgroundColor: [
+                              'rgba(59, 130, 246, 0.5)',  // 藍色
+                              'rgba(239, 68, 68, 0.5)',   // 紅色
+                              'rgba(16, 185, 129, 0.5)'   // 綠色
+                            ],
+                            borderColor: [
+                              'rgb(59, 130, 246)',
+                              'rgb(239, 68, 68)',
+                              'rgb(16, 185, 129)'
+                            ],
+                            borderWidth: 1,
+                            borderRadius: 8,
+                            hoverBackgroundColor: [
+                              'rgba(59, 130, 246, 0.7)',
+                              'rgba(239, 68, 68, 0.7)',
+                              'rgba(16, 185, 129, 0.7)'
+                            ]
+                          }]
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: {
+                              display: false
+                            },
+                            title: {
+                              display: true,
+                              text: '收支統計圖表',
+                              font: {
+                                size: 16,
+                                weight: 'bold'
+                              },
+                              padding: {
+                                bottom: 20
+                              },
+                              color: '#374151'
+                            }
                           },
-                          title: {
-                            display: true,
-                            text: '收支統計圖表',
-                            font: {
-                              size: 16,
-                              weight: 'bold'
-                            },
-                            padding: {
-                              bottom: 20
-                            },
-                            color: '#374151'
-                          }
-                        },
-                        scales: {
-                          y: {
-                            beginAtZero: true,
-                            grid: {
-                              color: 'rgba(0, 0, 0, 0.05)',
-                              drawBorder: false
-                            },
-                            ticks: {
-                              callback: function(value) {
-                                return 'NT$ ' + Number(value).toLocaleString();
+                          scales: {
+                            y: {
+                              beginAtZero: true,
+                              grid: {
+                                color: 'rgba(0, 0, 0, 0.05)',
+                                drawBorder: false
+                              },
+                              ticks: {
+                                callback: function(value) {
+                                  return 'NT$ ' + Number(value).toLocaleString()
+                                }
                               }
                             }
                           }
-                        }
-                      }}
-                      style={{ height: '300px' }}
-                    />
-                  </div>
-                )}
+                        }}
+                        style={{ height: '300px' }}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </>
           )}
@@ -1109,6 +1111,3 @@ const Page: React.FC = () => {
       </div>
     </main>
   )
-}
-
-export default Page
