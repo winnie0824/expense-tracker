@@ -443,10 +443,71 @@ export default function Home() {
     }
   }
 
-  // 處理更新匯率
-  const handleUpdateRates = async () => {
-    await fetchExchangeRates()
-  }
+ // 處理更新匯率
+const handleUpdateRates = async () => {
+  await fetchExchangeRates()
+}
+
+// 新增：匯出 Excel 功能
+const handleExportExcel = () => {
+  if (!currentTour) return;
+
+  // 準備準備事項數據
+  const prepItemsData = currentTour.prepItems.map(item => ({
+    日期: item.dueDate,
+    類型: item.type === 'hotel' ? '住宿' :
+         item.type === 'flight' ? '機票' :
+         item.type === 'transport' ? '交通' : '其他',
+    名稱: item.name,
+    狀態: item.status === 'completed' ? '已完成' : '待處理',
+    預估成本: item.cost,
+    幣種: item.currency,
+    台幣金額: convertToTWD(item.cost, item.currency),
+    備註: item.notes || ''
+  }));
+
+  // 準備收支記錄數據
+  const entriesData = currentTour.entries.map(entry => ({
+    日期: entry.date,
+    說明: entry.description,
+    類型: entry.type === 'income' ? '收入' : '支出',
+    金額: entry.amount,
+    幣種: entry.currency,
+    台幣金額: convertToTWD(entry.amount, entry.currency)
+  }));
+
+  // 準備統計數據
+  const stats = calculateTourStats(currentTour);
+  const summaryData = [{
+    項目: '總收入',
+    金額: stats.income
+  }, {
+    項目: '總支出',
+    金額: stats.expense
+  }, {
+    項目: '淨利潤',
+    金額: stats.profit
+  }];
+
+  import('xlsx').then(XLSX => {
+    const wb = XLSX.utils.book_new();
+    
+    // 添加準備事項表
+    const ws1 = XLSX.utils.json_to_sheet(prepItemsData);
+    XLSX.utils.book_append_sheet(wb, ws1, "準備事項");
+    
+    // 添加收支記錄表
+    const ws2 = XLSX.utils.json_to_sheet(entriesData);
+    XLSX.utils.book_append_sheet(wb, ws2, "收支記錄");
+    
+    // 添加統計表
+    const ws3 = XLSX.utils.json_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, ws3, "統計摘要");
+    
+    // 導出文件
+    XLSX.writeFile(wb, `${currentTour.name}-報表.xlsx`);
+  });
+};
 return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
       <div className="max-w-7xl mx-auto">
@@ -475,6 +536,29 @@ return (
                 <span>更新匯率</span>
               </div>
             </button>
+  
+  {/* 在這裡添加新的匯出按鈕 */}
+  {currentTour && (
+    <button
+      onClick={handleExportExcel}
+      className="group relative overflow-hidden px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 hover:scale-105"
+    >
+      <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
+      <div className="relative flex items-center gap-2">
+        <FileText size={20} />
+        <span>匯出 Excel</span>
+      </div>
+    </button>
+  )}
+
+  <button
+    onClick={handleClearAllData}
+    className="group relative overflow-hidden px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 hover:scale-105"
+  >
+  <button
+    onClick={handleClearAllData}
+    className="group relative overflow-hidden px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 hover:scale-105"
+  >
             <button
               onClick={handleClearAllData}
               className="group relative overflow-hidden px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 hover:scale-105"
