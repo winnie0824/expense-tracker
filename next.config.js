@@ -1,17 +1,25 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        stream: false,
-        crypto: false,
-        fs: false,
-        path: false,
-      }
-    }
-    return config
+  reactStrictMode: true,
+  swcMinify: true,
+  webpack: (config) => {
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      stream: false,
+      crypto: false,
+      path: false,
+      process: false,
+      buffer: false,
+      util: false,
+      assert: false,
+      worker_threads: false,
+      os: false,
+      readline: false,
+    };
+    return config;
   },
+  transpilePackages: ['xlsx'],
 }
 
 module.exports = nextConfig
