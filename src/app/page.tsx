@@ -543,6 +543,239 @@ const handleExportExcel = async () => {
 // 返回 JSX
 return (
   <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
-    {/* 這裡是整個 UI 的返回內容 */}
+    <div className="max-w-7xl mx-auto">
+      {/* 標題 */}
+      <div className="flex justify-between items-center mb-8">
+        <div className="flex items-center space-x-2">
+          <div className="relative">
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full blur opacity-75"></div>
+            <div className="relative bg-white rounded-full p-4">
+              <Briefcase className="w-8 h-8 text-indigo-600" />
+            </div>
+          </div>
+          <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-500">
+            旅行團收支管理
+          </h1>
+        </div>
+        <div className="space-x-2">
+          <button
+            onClick={handleUpdateRates}
+            className="group relative overflow-hidden px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isUpdatingRates}
+          >
+            <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
+            <div className="relative flex items-center gap-2">
+              <RefreshCcw size={20} className={isUpdatingRates ? 'animate-spin' : ''} />
+              <span>更新匯率</span>
+            </div>
+          </button>
+          {currentTour && (
+  <button
+    onClick={handleExportExcel}
+    className="group relative overflow-hidden px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 hover:scale-105"
+  >
+    <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
+    <div className="relative flex items-center gap-2">
+      <FileText size={20} />
+      <span>匯出 Excel</span>
+    </div>
+  </button>
+)}
+
+<button
+  onClick={handleClearAllData}
+  className="group relative overflow-hidden px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 hover:scale-105"
+>
+  <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
+  <div className="relative flex items-center gap-2">
+    <Trash2 size={20} />
+    <span>清除所有數據</span>
   </div>
-)
+</button>
+</div>
+</div>
+
+{/* 匯率資訊 */}
+<div className="mb-8 bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-lg border border-white/20">
+  <h3 className="text-lg font-semibold text-gray-700 mb-4">即時匯率</h3>
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    {Object.values(exchangeRates).map(rate => (
+      <div key={rate.currency} className="bg-gray-50 rounded-xl p-4">
+        <div className="flex justify-between items-center">
+          <span className="text-gray-600">{rate.currency}/TWD</span>
+          <span className="text-lg font-semibold">
+            {rate.currency === 'TWD' ? '1.0000' : rate.rate.toFixed(4)}
+          </span>
+        </div>
+        <div className="text-sm text-gray-500 mt-2">
+          更新時間: {new Date(rate.lastUpdated).toLocaleString()}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+      {/* 主要內容區 */}
+<div className="bg-white/80 backdrop-blur-md rounded-3xl shadow-xl border border-white/20 p-8">
+  {/* 團體選擇和新增按鈕 */}
+  <div className="flex gap-4 mb-8">
+    <select
+      value={currentTour?.id || ''}
+      onChange={e => setCurrentTour(tours.find(t => t.id === Number(e.target.value)) || null)}
+      className="flex-1 p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500"
+    >
+      <option value="">選擇旅行團</option>
+      {tours.map(tour => (
+        <option key={tour.id} value={tour.id}>
+          {tour.name} ({tour.date})
+        </option>
+      ))}
+    </select>
+    <button
+      onClick={() => setShowNewTourForm(true)}
+      className="group relative overflow-hidden px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:shadow-lg transition-all duration-300 hover:scale-105"
+    >
+      <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
+      <div className="relative flex items-center gap-2">
+        <PlusCircle size={20} />
+        <span>新增團體</span>
+      </div>
+    </button>
+  </div>
+
+  {/* 新增團體表單 */}
+  {showNewTourForm && (
+    <form onSubmit={handleAddTour} className="mb-8 bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+      <h2 className="text-xl font-bold mb-4">新增旅行團</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">團體名稱</label>
+          <input
+            type="text"
+            value={newTour.name}
+            onChange={e => setNewTour({ ...newTour, name: e.target.value })}
+            className="w-full border border-gray-200 rounded-lg p-2.5"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">出發日期</label>
+          <input
+            type="date"
+            value={newTour.date}
+            onChange={e => setNewTour({ ...newTour, date: e.target.value })}
+            className="w-full border border-gray-200 rounded-lg p-2.5"
+            required
+          />
+        </div>
+      </div>
+      <div className="mt-4 flex justify-end">
+        <button
+          type="submit"
+          className="px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity"
+        >
+          建立團體
+        </button>
+      </div>
+    </form>
+  )}
+  {currentTour && (
+  <>
+    {/* 收支統計 */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      {['收入', '支出', '利潤'].map((label, index) => {
+        const stats = calculateTourStats(currentTour)
+        const value = [stats.income, stats.expense, stats.profit][index]
+        const colors = [
+          'from-blue-500 to-blue-600',
+          'from-red-500 to-red-600',
+          'from-green-500 to-green-600'
+        ][index]
+        const textColors = [
+          'text-blue-600',
+          'text-red-600',
+          'text-green-600'
+        ][index]
+        const icons = [PlusCircle, MinusCircle, DollarSign][index]
+        const Icon = icons
+
+        return (
+          <div key={label} className="relative group">
+            <div className={`absolute -inset-0.5 bg-gradient-to-r ${colors} rounded-2xl blur opacity-75 group-hover:opacity-100 transition`}></div>
+            <div className="relative bg-white rounded-2xl p-6">
+              <div className="flex items-center gap-2 text-gray-600 mb-2">
+                <Icon size={20} className={textColors} />
+                <span className="font-medium">{label}</span>
+              </div>
+              <div className={`text-3xl font-bold ${textColors}`}>
+                NT$ {value.toLocaleString()}
+              </div>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+    {/* 準備事項區域 */}
+<div className="mb-8">
+  <div className="flex justify-between items-center mb-4">
+    <h3 className="text-lg font-semibold text-gray-700">準備事項清單</h3>
+    <button
+      onClick={() => setShowPrepItemsForm(!showPrepItemsForm)}
+      className="group relative overflow-hidden px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:shadow-lg transition-all duration-300 hover:scale-105"
+    >
+      <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
+      <div className="relative flex items-center gap-2">
+        <PlusCircle size={16} />
+        <span>新增準備事項</span>
+      </div>
+    </button>
+  </div>
+
+  {/* 準備事項表單 */}
+  {showPrepItemsForm && (
+    <form onSubmit={handleAddPrepItem} className="mb-6 bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+      <h2 className="text-xl font-bold mb-4">
+        {editState.isEditing && editState.editingType === 'prepItem' ? '編輯準備事項' : '新增準備事項'}
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* 準備事項表單內容 */}
+      </div>
+    </form>
+  )}
+
+  {/* 準備事項列表 */}
+  <div className="bg-white rounded-xl overflow-hidden shadow-lg border border-gray-100">
+    {/* 準備事項列表內容 */}
+  </div>
+</div>
+    {/* 新增記錄按鈕和表單 */}
+<div className="mb-8">
+  <button
+    onClick={() => setShowNewEntryForm(!showNewEntryForm)}
+    className="mb-4 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2"
+  >
+    <PlusCircle size={20} />
+    <span>新增收支記錄</span>
+  </button>
+
+  {showNewEntryForm && (
+    <form onSubmit={handleAddEntry} className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+      {/* 新增記錄表單內容 */}
+    </form>
+  )}
+</div>
+
+{/* 記錄表格 */}
+<div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+  {/* 記錄表格內容 */}
+</div>
+
+{/* 收支圖表 */}
+{currentTour.entries.length > 0 && (
+  <div className="mt-8 bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+    {/* 收支圖表內容 */}
+  </div>
+)}
+</>
+)}
+</div>
+</div>
