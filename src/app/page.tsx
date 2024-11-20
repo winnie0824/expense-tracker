@@ -544,7 +544,7 @@ const handleExportExcel = async () => {
       console.error('匯出 Excel 失敗:', error);
       alert('匯出 Excel 失敗，請稍後再試');
     }
-  };
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
