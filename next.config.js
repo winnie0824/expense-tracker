@@ -7,9 +7,6 @@ const nextConfig = {
       fs: false,
       stream: false,
       crypto: false,
-      process: false,
-      path: false,
-      buffer: false,
     };
     return config;
   },
