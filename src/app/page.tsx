@@ -1095,7 +1095,7 @@ const handleExportExcel = async () => {
                               beginAtZero: true,
                               grid: {
                                 color: 'rgba(0, 0, 0, 0.05)',
-                                drawBorder: false
+                                display: true
                               },
                               ticks: {
                                 callback: function(value) {
