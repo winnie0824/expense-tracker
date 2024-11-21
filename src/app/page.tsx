@@ -1039,7 +1039,7 @@ const handleExportExcel = async () => {
                     </table>
                   </div>
                   {/* 收支圖表 */}
-                 {currentTour.entries.length > 0 && (
+                {currentTour.entries.length > 0 && (
   <div className="mt-8 bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
     <Bar
       data={{
@@ -1055,14 +1055,7 @@ const handleExportExcel = async () => {
             'rgba(59, 130, 246, 0.5)',
             'rgba(239, 68, 68, 0.5)',
             'rgba(16, 185, 129, 0.5)'
-          ],
-          borderColor: [
-            'rgb(59, 130, 246)',
-            'rgb(239, 68, 68)',
-            'rgb(16, 185, 129)'
-          ],
-          borderWidth: 1,
-          borderRadius: 8
+          ]
         }]
       }}
       options={{
@@ -1071,30 +1064,18 @@ const handleExportExcel = async () => {
         plugins: {
           legend: {
             display: false
-          },
-          title: {
-            display: true,
-            text: '收支統計圖表',
-            font: {
-              size: 16,
-              weight: 'bold'
-            },
-            padding: {
-              bottom: 20
-            },
-            color: '#374151'
           }
         },
         scales: {
           y: {
             beginAtZero: true,
             ticks: {
-              callback: (value: any) => `NT$ ${Number(value).toLocaleString()}`
+              callback: (value) => `NT$ ${value.toLocaleString()}`
             }
           }
         }
       }}
-      style={{ height: '300px' }}
+      height={300}
     />
   </div>
 )}
