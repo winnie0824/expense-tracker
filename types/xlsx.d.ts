@@ -1,3 +1,4 @@
+// types/xlsx.d.ts
 declare module 'xlsx' {
   export interface WorkBook {}
   export interface WorkSheet {}
