@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { 
-import { saveAs } from 'file-saver';
   Briefcase, 
   PlusCircle, 
   MinusCircle, 
@@ -554,8 +553,8 @@ export default function Page(): JSX.Element {
     // 使用 file-saver 下載文件
     saveAs(blob, `${currentTour.name}-報表.xlsx`);
 
+  XLSX.writeFile(wb, `${currentTour.name}-報表.xlsx`)
   } catch (error) {
-    // 錯誤處理
     console.error('匯出 Excel 失敗:', error)
     alert('匯出 Excel 失敗，請稍後再試')
   }
