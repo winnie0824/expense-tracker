@@ -1039,7 +1039,7 @@ const handleExportExcel = async () => {
                     </table>
                   </div>
                   {/* 收支圖表 */}
-                  {currentTour.entries.length > 0 && (
+                 {currentTour.entries.length > 0 && (
   <div className="mt-8 bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
     <Bar
       data={{
@@ -1052,9 +1052,9 @@ const handleExportExcel = async () => {
             calculateTourStats(currentTour).profit
           ],
           backgroundColor: [
-            'rgba(59, 130, 246, 0.5)',  // 藍色
-            'rgba(239, 68, 68, 0.5)',   // 紅色
-            'rgba(16, 185, 129, 0.5)'   // 綠色
+            'rgba(59, 130, 246, 0.5)',
+            'rgba(239, 68, 68, 0.5)',
+            'rgba(16, 185, 129, 0.5)'
           ],
           borderColor: [
             'rgb(59, 130, 246)',
@@ -1062,12 +1062,7 @@ const handleExportExcel = async () => {
             'rgb(16, 185, 129)'
           ],
           borderWidth: 1,
-          borderRadius: 8,
-          hoverBackgroundColor: [
-            'rgba(59, 130, 246, 0.7)',
-            'rgba(239, 68, 68, 0.7)',
-            'rgba(16, 185, 129, 0.7)'
-          ]
+          borderRadius: 8
         }]
       }}
       options={{
@@ -1093,16 +1088,8 @@ const handleExportExcel = async () => {
         scales: {
           y: {
             beginAtZero: true,
-            border: {
-              display: false
-            },
-            grid: {
-              color: 'rgba(0, 0, 0, 0.05)'
-            },
             ticks: {
-              callback: (value) => {
-                return 'NT$ ' + Number(value).toLocaleString();
-              }
+              callback: (value: any) => `NT$ ${Number(value).toLocaleString()}`
             }
           }
         }
