@@ -454,14 +454,14 @@ export default function Page(): JSX.Element {
       }
     }
   }
- const handleExportExcel = async () => {
+const handleExportExcel = async () => {
   if (!currentTour) return
 
   try {
-    // 動態導入 XLSX，這樣可以減少初始加載時間
-    const XLSX = await import('xlsx/dist/xlsx.full.min.js')
+    // 導入 XLSX
+    const XLSX = await import('xlsx');
 
-    // 第一步：準備準備事項數據
+    // 準備數據
     const prepItemsData = currentTour.prepItems.map(item => ({
       日期: item.dueDate,
       類型: item.type === 'hotel' ? '住宿' :
@@ -473,9 +473,8 @@ export default function Page(): JSX.Element {
       幣種: item.currency,
       台幣金額: convertToTWD(item.cost, item.currency),
       備註: item.notes || ''
-    }))
+    }));
 
-    // 第二步：準備收支記錄數據
     const entriesData = currentTour.entries.map(entry => ({
       日期: entry.date,
       說明: entry.description,
@@ -483,10 +482,9 @@ export default function Page(): JSX.Element {
       金額: entry.amount,
       幣種: entry.currency,
       台幣金額: convertToTWD(entry.amount, entry.currency)
-    }))
+    }));
 
-    // 第三步：準備統計摘要數據
-    const stats = calculateTourStats(currentTour)
+    const stats = calculateTourStats(currentTour);
     const summaryData = [{
       項目: '總收入',
       金額: stats.income
@@ -496,69 +494,29 @@ export default function Page(): JSX.Element {
     }, {
       項目: '淨利潤',
       金額: stats.profit
-    }]
+    }];
 
-    // 第四步：創建新的工作簿
-    const wb = XLSX.utils.book_new()
+    // 創建工作簿
+    const wb = XLSX.utils.book_new();
     
-    // 第五步：創建並添加準備事項工作表
-    const ws1 = XLSX.utils.json_to_sheet(prepItemsData, {
-      header: ['日期', '類型', '名稱', '狀態', '預估成本', '幣種', '台幣金額', '備註']
-    })
-    XLSX.utils.book_append_sheet(wb, ws1, "準備事項")
+    // 創建工作表
+    const ws1 = XLSX.utils.json_to_sheet(prepItemsData);
+    const ws2 = XLSX.utils.json_to_sheet(entriesData);
+    const ws3 = XLSX.utils.json_to_sheet(summaryData);
     
-    // 第六步：創建並添加收支記錄工作表
-    const ws2 = XLSX.utils.json_to_sheet(entriesData, {
-      header: ['日期', '說明', '類型', '金額', '幣種', '台幣金額']
-    })
-    XLSX.utils.book_append_sheet(wb, ws2, "收支記錄")
+    // 添加工作表到工作簿
+    XLSX.utils.book_append_sheet(wb, ws1, "準備事項");
+    XLSX.utils.book_append_sheet(wb, ws2, "收支記錄");
+    XLSX.utils.book_append_sheet(wb, ws3, "統計摘要");
     
-    // 第七步：創建並添加統計摘要工作表
-    const ws3 = XLSX.utils.json_to_sheet(summaryData, {
-      header: ['項目', '金額']
-    })
-    XLSX.utils.book_append_sheet(wb, ws3, "統計摘要")
-    
-    // 第八步：設定工作表的列寬
-    const setCellWidths = (ws: any) => {
-      const wscols = [
-        {wch: 12},  // 日期
-        {wch: 10},  // 類型
-        {wch: 20},  // 名稱/說明
-        {wch: 10},  // 狀態
-        {wch: 12},  // 金額
-        {wch: 8},   // 幣種
-        {wch: 12},  // 台幣金額
-        {wch: 20}   // 備註
-      ];
-      ws['!cols'] = wscols;
-    }
+    // 下載檔案
+    XLSX.writeFile(wb, `${currentTour.name}-報表.xlsx`);
 
-    setCellWidths(ws1);
-    setCellWidths(ws2);
-    setCellWidths(ws3);
-
-    // 第九步：生成並下載文件
-    const wbout = XLSX.write(wb, { 
-      bookType: 'xlsx', 
-      type: 'array',
-      bookSST: false
-    });
-
-    // 第十步：創建 Blob 並使用 file-saver 下載
-    const blob = new Blob([wbout], { 
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-    });
-    
-    // 使用 file-saver 下載文件
-    saveAs(blob, `${currentTour.name}-報表.xlsx`);
-
-  XLSX.writeFile(wb, `${currentTour.name}-報表.xlsx`)
   } catch (error) {
-    console.error('匯出 Excel 失敗:', error)
-    alert('匯出 Excel 失敗，請稍後再試')
+    console.error('匯出 Excel 失敗:', error);
+    alert('匯出 Excel 失敗，請稍後再試');
   }
-}
+};
   return (
     <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
       <div className="max-w-7xl mx-auto">
