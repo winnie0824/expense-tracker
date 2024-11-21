@@ -1040,81 +1040,74 @@ const handleExportExcel = async () => {
                   </div>
                   {/* 收支圖表 */}
                   {currentTour.entries.length > 0 && (
-                    <div className="mt-8 bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                      <Bar
-                        data={{
-                          labels: ['收入', '支出', '利潤'],
-                          datasets: [{
-                            label: '金額',
-                            data: [
-                              calculateTourStats(currentTour).income,
-                              calculateTourStats(currentTour).expense,
-                              calculateTourStats(currentTour).profit
-                            ],
-                            backgroundColor: [
-                              'rgba(59, 130, 246, 0.5)',  // 藍色
-                              'rgba(239, 68, 68, 0.5)',   // 紅色
-                              'rgba(16, 185, 129, 0.5)'   // 綠色
-                            ],
-                            borderColor: [
-                              'rgb(59, 130, 246)',
-                              'rgb(239, 68, 68)',
-                              'rgb(16, 185, 129)'
-                            ],
-                            borderWidth: 1,
-                            borderRadius: 8,
-                            hoverBackgroundColor: [
-                              'rgba(59, 130, 246, 0.7)',
-                              'rgba(239, 68, 68, 0.7)',
-                              'rgba(16, 185, 129, 0.7)'
-                            ]
-                          }]
-                        }}
-                        options={{
-                          responsive: true,
-                          maintainAspectRatio: false,
-                          plugins: {
-                            legend: {
-                              display: false
-                            },
-                            title: {
-                              display: true,
-                              text: '收支統計圖表',
-                              font: {
-                                size: 16,
-                                weight: 'bold'
-                              },
-                              padding: {
-                                bottom: 20
-                              },
-                              color: '#374151'
-                            }
-                          },
-                          scales: {
-                            y: {
-                              beginAtZero: true,
-                              grid: {
-                                color: 'rgba(0, 0, 0, 0.05)',
-                                display: true
-                              },
-                              ticks: {
-                                callback: function(value) {
-                                  return 'NT$ ' + Number(value).toLocaleString()
-                                }
-                              }
-                            }
-                          }
-                        }}
-                        style={{ height: '300px' }}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </main>
-  )
-}
+  <div className="mt-8 bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+    <Bar
+      data={{
+        labels: ['收入', '支出', '利潤'],
+        datasets: [{
+          label: '金額',
+          data: [
+            calculateTourStats(currentTour).income,
+            calculateTourStats(currentTour).expense,
+            calculateTourStats(currentTour).profit
+          ],
+          backgroundColor: [
+            'rgba(59, 130, 246, 0.5)',  // 藍色
+            'rgba(239, 68, 68, 0.5)',   // 紅色
+            'rgba(16, 185, 129, 0.5)'   // 綠色
+          ],
+          borderColor: [
+            'rgb(59, 130, 246)',
+            'rgb(239, 68, 68)',
+            'rgb(16, 185, 129)'
+          ],
+          borderWidth: 1,
+          borderRadius: 8,
+          hoverBackgroundColor: [
+            'rgba(59, 130, 246, 0.7)',
+            'rgba(239, 68, 68, 0.7)',
+            'rgba(16, 185, 129, 0.7)'
+          ]
+        }]
+      }}
+      options={{
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          title: {
+            display: true,
+            text: '收支統計圖表',
+            font: {
+              size: 16,
+              weight: 'bold'
+            },
+            padding: {
+              bottom: 20
+            },
+            color: '#374151'
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            border: {
+              display: false
+            },
+            grid: {
+              color: 'rgba(0, 0, 0, 0.05)'
+            },
+            ticks: {
+              callback: (value) => {
+                return 'NT$ ' + Number(value).toLocaleString();
+              }
+            }
+          }
+        }
+      }}
+      style={{ height: '300px' }}
+    />
+  </div>
+)}
